@@ -10,7 +10,7 @@
         "pin": 27
     },
     "DUS1": {
-        "enabled": true,
+        "enabled": false,
         "simulated": true,
         "trig_pin": 22,
         "echo_pin": 23
@@ -21,7 +21,7 @@
         "pin": 24
     },
     "DPIR1": {
-        "enabled": true,
+        "enabled": false,
         "simulated": true,
         "pin": 5
     },
