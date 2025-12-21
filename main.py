@@ -36,12 +36,23 @@ if __name__ == "__main__":
         dl_queue = Queue()
         db_queue = Queue()
 
-        run_ds(ds1_settings, threads, stop_event, "DS1", dl_queue, db_queue)
-        run_dl(dl_settings, threads, stop_event, "DL", dl_queue)
-        run_uds(dus1_settings, threads, stop_event, "DUS1")
-        run_db(db_settings, threads, stop_event, "DB", db_queue)
-        run_dms(dms_settings, threads, stop_event, "DMS")
-        run_pir(dpir1_settings, threads, stop_event, "DPIR1")
+        if ds1_settings.get('enabled', True):
+            run_ds(ds1_settings, threads, stop_event, "DS1", dl_queue, db_queue)
+        
+        if dl_settings.get('enabled', True):
+            run_dl(dl_settings, threads, stop_event, "DL", dl_queue)
+        
+        if dus1_settings.get('enabled', True):
+            run_uds(dus1_settings, threads, stop_event, "DUS1")
+        
+        if db_settings.get('enabled', True):
+            run_db(db_settings, threads, stop_event, "DB", db_queue)
+        
+        if dms_settings.get('enabled', True):
+            run_dms(dms_settings, threads, stop_event, "DMS")
+        
+        if dpir1_settings.get('enabled', True):
+            run_pir(dpir1_settings, threads, stop_event, "DPIR1")
         
         run_console(dl_queue, db_queue, stop_event)
 
