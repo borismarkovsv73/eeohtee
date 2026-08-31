@@ -28,9 +28,6 @@ def _publish_batches(client, drained):
 
 
 def run_publisher_daemon(mqtt_settings, stop_event):
-    """Generic batching daemon: works for every sensor/actuator type,
-    since it only ever moves opaque (topic, reading) pairs out of the buffer.
-    """
     if stop_event.is_set():
         return
     client = _connect(mqtt_settings)

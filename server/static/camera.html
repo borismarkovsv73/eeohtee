@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WEBC - Door Camera</title>
+<style>
+  body {
+    margin: 0;
+    font-family: sans-serif;
+    background: #111;
+    color: #fff;
+  }
+
+  .controls {
+    padding: 10px;
+    background: #1c1c1c;
+  }
+
+  .controls label {
+    font-size: 12px;
+    color: #aaa;
+  }
+
+  .controls input {
+    width: 100%;
+    max-width: 480px;
+    padding: 6px;
+    font-size: 12px;
+    box-sizing: border-box;
+    display: block;
+    margin-top: 4px;
+  }
+
+  .cam {
+    background: #000;
+    height: calc(100vh - 70px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cam img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <label for="url">WEBC stream URL (Door Web Camera, PI1) - edit to the real Pi's IP for the defense:</label>
+  <input id="url" value="http://localhost:8080/?action=stream" />
+</div>
+
+<div class="cam">
+  <img id="cam" src="http://localhost:8080/?action=stream" />
+</div>
+
+<script>
+const input = document.getElementById("url");
+const img = document.getElementById("cam");
+
+input.onchange = () => {
+  img.src = input.value;
+};
+</script>
+
+</body>
+</html>

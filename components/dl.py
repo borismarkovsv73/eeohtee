@@ -2,11 +2,14 @@ from simulators.dl import run_dl_simulator
 from actuators.dl import run_dl_loop
 from mqtt_client.buffer import enqueue_reading
 from mqtt_client.topics import resolve_topic
+from verbosity import is_verbose
 import threading
 import time
 
 
 def dl_callback(state, code, name):
+    if not is_verbose():
+        return
     t = time.localtime()
     led_state = "ON" if state else "OFF"
     print("="*20 + f"\nName: {name}\nTimestamp: {time.strftime('%H:%M:%S', t)}\nCode: {code}\nState: {led_state}\n")

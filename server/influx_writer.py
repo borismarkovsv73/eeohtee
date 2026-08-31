@@ -26,16 +26,17 @@ class InfluxWriter(object):
             point = (
                 Point(sensor_code)
                 .tag("pi_id", pi_id)
-                .tag("code", reading.get("code", ""))
                 .tag("simulated", str(bool(reading.get("simulated"))).lower())
+                .field("code", str(reading.get("code", "")))
             )
+            field = reading.get("field", "value")
             value = reading.get("value")
             if isinstance(value, bool):
-                point = point.field("value", value)
+                point = point.field(field, value)
             elif isinstance(value, (int, float)):
-                point = point.field("value", float(value))
+                point = point.field(field, float(value))
             else:
-                point = point.field("value", str(value))
+                point = point.field(field, str(value))
 
             timestamp = reading.get("timestamp")
             if timestamp is not None:

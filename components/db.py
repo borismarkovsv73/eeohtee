@@ -2,11 +2,14 @@ from simulators.db import run_db_simulator
 from actuators.db import run_db_loop
 from mqtt_client.buffer import enqueue_reading
 from mqtt_client.topics import resolve_topic
+from verbosity import is_verbose
 import threading
 import time
 
 
 def db_callback(state, code, name):
+    if not is_verbose():
+        return
     t = time.localtime()
     buzzing = "Buzzing" if state else "Not buzzing"
     print("="*20 + f"\nName: {name}\nTimestamp: {time.strftime('%H:%M:%S', t)}\nCode: {code}\nState: {buzzing}\n")

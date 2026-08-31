@@ -3,15 +3,6 @@ import time
 
 
 class ReadingBuffer(object):
-    """Thread-safe collection point for sensor/actuator readings.
-
-    Producers (sensor callbacks) call add() from many different threads.
-    The publisher daemon calls drain() once per batch interval. The lock
-    only ever guards a single list append or a list swap, so no producer
-    or consumer ever blocks for longer than that, and no other lock is
-    ever acquired while this one is held - so deadlock is not reachable.
-    """
-
     def __init__(self):
         self._lock = threading.Lock()
         self._items = []

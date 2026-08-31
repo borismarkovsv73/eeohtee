@@ -1,0 +1,107 @@
+{
+  "title": "Smart Home - PI3 Sensors & Actuators",
+  "uid": "smarthome-pi3",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "DHT1 - Bedroom Temperature & Humidity",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 10, "showPoints": "auto", "spanNulls": true },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DHT1\")" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "DHT2 - Master Bedroom Temperature & Humidity",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "lineWidth": 2, "fillOpacity": 10, "showPoints": "auto", "spanNulls": true },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DHT2\")" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "IR - Remote Control Codes",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left", "displayMode": "auto" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Value" }, "properties": [{ "id": "displayName", "value": "Remote code" }] }
+        ]
+      },
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Time", "desc": true }] },
+      "targets": [
+        { "refId": "A", "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"IR\")\n  |> filter(fn: (r) => r._field == \"value\")\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sort(columns: [\"_time\"], desc: true)" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "BRGB - Bedroom RGB Light",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 255,
+          "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "lineWidth": 2, "fillOpacity": 5, "showPoints": "always", "pointSize": 4, "spanNulls": true },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"BRGB\")" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "LCD - Living Room Display",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "custom": { "align": "left", "displayMode": "auto" } } },
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Time", "desc": true }] },
+      "targets": [
+        { "refId": "A", "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"LCD\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"_time\", \"line0\", \"line1\"])\n  |> sort(columns: [\"_time\"], desc: true)" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "DPIR3 - Living Room Motion Sensor",
+      "type": "state-timeline",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "special", "options": { "match": "true", "result": { "text": "Motion", "color": "orange" } } },
+            { "type": "special", "options": { "match": "false", "result": { "text": "Clear", "color": "green" } } }
+          ]
+        }
+      },
+      "options": { "mergeValues": true, "showValue": "always", "alignValue": "left", "rowHeight": 0.9, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        { "refId": "A", "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DPIR3\")\n  |> filter(fn: (r) => r._field == \"value\")" }
+      ]
+    }
+  ]
+}

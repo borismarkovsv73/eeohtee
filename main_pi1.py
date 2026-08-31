@@ -10,6 +10,7 @@ from components.uds import run_uds
 from components.db import run_db
 from components.dms import run_dms
 from components.pir import run_pir
+from components.webc import run_webc
 from console import run_console
 from mqtt_client.publisher import start_publisher_daemon
 import time
@@ -23,7 +24,7 @@ except:
 
 if __name__ == "__main__":
     print('Starting app')
-    settings = load_settings()
+    settings = load_settings('settings_pi1.json')
     threads = []
     stop_event = threading.Event()
     try:
@@ -35,6 +36,7 @@ if __name__ == "__main__":
         db_settings = settings['DB']
         dpir1_settings = settings['DPIR1']
         dms_settings = settings['DMS']
+        webc_settings = settings['WEBC']
 
         dl_queue = Queue()
         db_queue = Queue()
@@ -60,7 +62,31 @@ if __name__ == "__main__":
         if dpir1_settings.get('enabled', True):
             run_pir(dpir1_settings, threads, stop_event, "DPIR1", mqtt_settings, device_settings)
 
-        run_console(dl_queue, db_queue, stop_event)
+        if webc_settings.get('enabled', True):
+            run_webc(webc_settings, threads, stop_event, "WEBC", mqtt_settings, device_settings)
+
+        actuators = [
+            {
+                "code": "DL",
+                "enabled": dl_settings.get('enabled', True),
+                "queue": dl_queue,
+                "help": ["DL ON    - Turn LED on", "DL OFF   - Turn LED off"],
+                "commands": {
+                    "ON": lambda args: {"code": "MANUAL_ON", "state": True},
+                    "OFF": lambda args: {"code": "MANUAL_OFF", "state": False},
+                },
+            },
+            {
+                "code": "DB",
+                "enabled": db_settings.get('enabled', True),
+                "queue": db_queue,
+                "help": ["DB BUZZ  - Activate buzzer"],
+                "commands": {
+                    "BUZZ": lambda args: {"code": "MANUAL_BUZZ", "state": True},
+                },
+            },
+        ]
+        run_console(stop_event, actuators)
 
     except KeyboardInterrupt:
         print('Stopping app')

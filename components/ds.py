@@ -2,11 +2,14 @@ from simulators.ds import run_ds_simulator
 from sensors.ds import run_ds_loop
 from mqtt_client.buffer import enqueue_reading
 from mqtt_client.topics import resolve_topic
+from verbosity import is_verbose
 import threading
 import time
 
 
 def ds_callback(state, code, name):
+    if not is_verbose():
+        return
     t = time.localtime()
     door_state = "Pressed" if state else "Released"
     print("="*20 + f"\nName: {name}\nTimestamp: {time.strftime('%H:%M:%S', t)}\nCode: {code}\nState: {door_state}\n")

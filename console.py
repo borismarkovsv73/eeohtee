@@ -1,52 +1,84 @@
-import threading
-from queue import Queue
-from settings import load_settings
+from verbosity import set_verbose
 
 
-def run_console(dl_queue, db_queue, stop_event):
-    settings = load_settings()
-    dl_enabled = settings.get('DL', {}).get('enabled', True)
-    db_enabled = settings.get('DB', {}).get('enabled', True)
-    
+def run_console(stop_event, actuators):
+    """Generic console control loop, shared by every PI's main script.
+
+    `actuators` is a list of dicts:
+      {
+        "code": "DL",                 # first token of the command, e.g. "DL ON"
+        "enabled": True/False,
+        "queue": dl_queue,
+        "help": ["DL ON    - Turn LED on", "DL OFF   - Turn LED off"],
+        "commands": {
+            "ON": lambda args: {"code": "MANUAL_ON", "state": True},
+            "OFF": lambda args: {"code": "MANUAL_OFF", "state": False},
+        },
+      }
+    A command handler returns the message dict to put on the queue, or
+    None (and may print its own error) if the arguments were invalid.
+    """
+    by_code = {a["code"]: a for a in actuators}
+
     print("\n" + "="*50)
     print("Console Control Interface")
     print("="*50)
     print("Commands:")
-    print(f"  DL ON    - Turn LED on {'(ENABLED)' if dl_enabled else '(DISABLED)'}")
-    print(f"  DL OFF   - Turn LED off {'(ENABLED)' if dl_enabled else '(DISABLED)'}")
-    print(f"  DB BUZZ  - Activate buzzer {'(ENABLED)' if db_enabled else '(DISABLED)'}")
+    for actuator in actuators:
+        status = "(ENABLED)" if actuator["enabled"] else "(DISABLED)"
+        for line in actuator["help"]:
+            print(f"  {line} {status}")
+    print("  QUIET ON/OFF - Silence/restore sensor console prints")
     print("  QUIT     - Exit application")
     print("="*50 + "\n")
-    
+
     while not stop_event.is_set():
         try:
-            command = input("Enter command: \n").strip().upper()
-            
-            if command == "DL ON":
-                if not dl_enabled:
-                    print("LED is DISABLED in settings.json")
-                else:
-                    dl_queue.put({"code": "MANUAL_ON", "state": True})
-                    print("LED turned ON")
-            elif command == "DL OFF":
-                if not dl_enabled:
-                    print("LED is DISABLED in settings.json")
-                else:
-                    dl_queue.put({"code": "MANUAL_OFF", "state": False})
-                    print("LED turned OFF")
-            elif command == "DB BUZZ":
-                if not db_enabled:
-                    print("Buzzer is DISABLED in settings.json")
-                else:
-                    db_queue.put({"code": "MANUAL_BUZZ", "state": True})
-                    print("Buzzer activated")
-            elif command == "QUIT":
+            raw = input("Enter command: \n").strip()
+            if not raw:
+                continue
+
+            if raw.upper() == "QUIT":
                 print("Exiting application...")
                 stop_event.set()
                 break
+
+            parts = raw.split()
+
+            if parts[0].upper() == "QUIET":
+                sub = parts[1].upper() if len(parts) > 1 else ""
+                if sub == "ON":
+                    set_verbose(False)
+                    print("Sensor console prints muted (QUIET OFF to restore)")
+                elif sub == "OFF":
+                    set_verbose(True)
+                    print("Sensor console prints restored")
+                else:
+                    print("Usage: QUIET ON | QUIET OFF")
+                continue
+
+            code = parts[0].upper()
+            actuator = by_code.get(code)
+
+            if not actuator:
+                print(f"Unknown command: {raw}")
+                continue
+            if not actuator["enabled"]:
+                print(f"{code} is DISABLED in settings")
+                continue
+
+            sub = parts[1].upper() if len(parts) > 1 else ""
+            handler = actuator["commands"].get(sub)
+            if not handler:
+                print(f"Unknown subcommand for {code}: {raw}")
+                continue
+
+            message = handler(parts[2:])
+            if message is not None:
+                actuator["queue"].put(message)
             else:
-                print(f"Unknown command: {command}")
-                print("Available: DL ON, DL OFF, DB BUZZ, QUIT")
+                print(f"Invalid arguments: {raw}")
+
         except EOFError:
             break
         except KeyboardInterrupt:

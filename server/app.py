@@ -22,6 +22,11 @@ def latest():
     return jsonify(snapshot())
 
 
+@app.get('/camera')
+def camera_view():
+    return app.send_static_file('camera.html')
+
+
 if __name__ == '__main__':
     http_settings = settings.get('http', {})
     app.run(host=http_settings.get('host', '0.0.0.0'), port=http_settings.get('port', 5000))

@@ -2,11 +2,14 @@ from simulators.pir import run_pir_simulator
 from sensors.pir import run_pir_loop
 from mqtt_client.buffer import enqueue_reading
 from mqtt_client.topics import resolve_topic
+from verbosity import is_verbose
 import threading
 import time
 
 
 def pir_callback(motion, code, name):
+    if not is_verbose():
+        return
     t = time.localtime()
     motion_state = "Motion detected" if motion else "No motion"
     print("="*20 + f"\nName: {name}\nTimestamp: {time.strftime('%H:%M:%S', t)}\nCode: {code}\nState: {motion_state}\n")

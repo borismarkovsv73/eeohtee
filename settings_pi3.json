@@ -1,0 +1,55 @@
+{
+    "device": {
+        "pi_id": "PI3",
+        "name": "Bedroom & Living Room Controller",
+        "location": "Bedroom / Master Bedroom / Living Room"
+    },
+    "mqtt": {
+        "broker": "localhost",
+        "port": 1883,
+        "client_id": "pi3-publisher",
+        "topic_prefix": "smarthome",
+        "batch_interval": 5
+    },
+    "DHT1": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 4
+    },
+    "DHT2": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 17
+    },
+    "IR": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 18
+    },
+    "BRGB": {
+        "enabled": true,
+        "simulated": true,
+        "pins": {
+            "r": 22,
+            "g": 23,
+            "b": 24
+        }
+    },
+    "LCD": {
+        "enabled": true,
+        "simulated": true,
+        "pins": {
+            "rs": 5,
+            "e": 6,
+            "d4": 12,
+            "d5": 13,
+            "d6": 19,
+            "d7": 26
+        }
+    },
+    "DPIR3": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 27
+    }
+}

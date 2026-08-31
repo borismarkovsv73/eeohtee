@@ -50,5 +50,13 @@
             "C3": 20,
             "C4": 21
         }
+    },
+    "WEBC": {
+        "enabled": true,
+        "simulated": true,
+        "device": "/dev/video0",
+        "port": 8080,
+        "resolution": "640x480",
+        "framerate": 15
     }
 }

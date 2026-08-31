@@ -1,0 +1,53 @@
+{
+    "device": {
+        "pi_id": "PI2",
+        "name": "Kitchen & Back Door Controller",
+        "location": "Kitchen / Back Door"
+    },
+    "mqtt": {
+        "broker": "localhost",
+        "port": 1883,
+        "client_id": "pi2-publisher",
+        "topic_prefix": "smarthome",
+        "batch_interval": 5
+    },
+    "DS2": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 17
+    },
+    "DUS2": {
+        "enabled": true,
+        "simulated": true,
+        "trig_pin": 22,
+        "echo_pin": 23
+    },
+    "DPIR2": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 5
+    },
+    "4SD": {
+        "enabled": true,
+        "simulated": true,
+        "pins": {
+            "segments": [6, 13, 19, 26, 21, 20, 16],
+            "digits": [12, 25, 24, 23]
+        }
+    },
+    "BTN": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 27
+    },
+    "DHT3": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 4
+    },
+    "GSG": {
+        "enabled": true,
+        "simulated": true,
+        "pin": 18
+    }
+}
