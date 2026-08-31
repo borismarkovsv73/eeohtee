@@ -9,7 +9,7 @@
         "port": 1883,
         "client_id": "pi1-publisher",
         "topic_prefix": "smarthome",
-        "batch_interval": 5
+        "batch_interval": 1
     },
     "DS1": {
         "enabled": true,

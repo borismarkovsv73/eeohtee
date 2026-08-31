@@ -40,3 +40,5 @@ def run_uds(settings, threads, stop_event, name, mqtt_settings, device_settings)
         sensor_thread.start()
         threads.append(sensor_thread)
         print(f"{name} loop started")
+
+    return callback

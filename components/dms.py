@@ -43,3 +43,5 @@ def run_dms(settings, threads, stop_event, name, mqtt_settings, device_settings)
         keypad_thread.start()
         threads.append(keypad_thread)
         print(f"{name} loop started")
+
+    return callback

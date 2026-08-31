@@ -1,7 +1,7 @@
 from verbosity import set_verbose
 
 
-def run_console(stop_event, actuators):
+def run_console(stop_event, actuators, triggers=None):
     """Generic console control loop, shared by every PI's main script.
 
     `actuators` is a list of dicts:
@@ -17,16 +17,27 @@ def run_console(stop_event, actuators):
       }
     A command handler returns the message dict to put on the queue, or
     None (and may print its own error) if the arguments were invalid.
+
+    `triggers` (optional) is a list of dicts in the same shape, minus
+    "queue" - used for forcing a sensor reading on demand for demo
+    purposes (e.g. "DS1 HOLD", "DPIR1 TRIGGER"). Its command handlers
+    perform the action directly (calling the sensor's real callback) and
+    return False on invalid input, or anything else on success.
     """
-    by_code = {a["code"]: a for a in actuators}
+    triggers = triggers or []
+    by_code = {}
+    for a in actuators:
+        by_code[a["code"]] = ("actuator", a)
+    for t in triggers:
+        by_code[t["code"]] = ("trigger", t)
 
     print("\n" + "="*50)
     print("Console Control Interface")
     print("="*50)
     print("Commands:")
-    for actuator in actuators:
-        status = "(ENABLED)" if actuator["enabled"] else "(DISABLED)"
-        for line in actuator["help"]:
+    for entry in actuators + triggers:
+        status = "(ENABLED)" if entry["enabled"] else "(DISABLED)"
+        for line in entry["help"]:
             print(f"  {line} {status}")
     print("  QUIET ON/OFF - Silence/restore sensor console prints")
     print("  QUIT     - Exit application")
@@ -58,26 +69,33 @@ def run_console(stop_event, actuators):
                 continue
 
             code = parts[0].upper()
-            actuator = by_code.get(code)
+            entry = by_code.get(code)
 
-            if not actuator:
+            if not entry:
                 print(f"Unknown command: {raw}")
                 continue
-            if not actuator["enabled"]:
+
+            kind, target = entry
+            if not target["enabled"]:
                 print(f"{code} is DISABLED in settings")
                 continue
 
             sub = parts[1].upper() if len(parts) > 1 else ""
-            handler = actuator["commands"].get(sub)
+            handler = target["commands"].get(sub)
             if not handler:
                 print(f"Unknown subcommand for {code}: {raw}")
                 continue
 
-            message = handler(parts[2:])
-            if message is not None:
-                actuator["queue"].put(message)
+            if kind == "actuator":
+                message = handler(parts[2:])
+                if message is not None:
+                    target["queue"].put(message)
+                else:
+                    print(f"Invalid arguments: {raw}")
             else:
-                print(f"Invalid arguments: {raw}")
+                result = handler(parts[2:])
+                if result is False:
+                    print(f"Invalid arguments: {raw}")
 
         except EOFError:
             break
