@@ -1,0 +1,19 @@
+{
+    "mqtt": {
+        "broker": "localhost",
+        "port": 1883,
+        "client_id": "smarthome-server",
+        "topic_prefix": "smarthome",
+        "subscribe_topic": "smarthome/#"
+    },
+    "influxdb": {
+        "url": "http://localhost:8086",
+        "token": "smarthome-dev-token",
+        "org": "smarthome",
+        "bucket": "smarthome"
+    },
+    "http": {
+        "host": "0.0.0.0",
+        "port": 5000
+    }
+}

@@ -1,4 +1,16 @@
 {
+    "device": {
+        "pi_id": "PI1",
+        "name": "Front Door Controller",
+        "location": "Front Door"
+    },
+    "mqtt": {
+        "broker": "localhost",
+        "port": 1883,
+        "client_id": "pi1-publisher",
+        "topic_prefix": "smarthome",
+        "batch_interval": 5
+    },
     "DS1": {
         "enabled": true,
         "simulated": true,
@@ -10,7 +22,7 @@
         "pin": 27
     },
     "DUS1": {
-        "enabled": false,
+        "enabled": true,
         "simulated": true,
         "trig_pin": 22,
         "echo_pin": 23
@@ -21,7 +33,7 @@
         "pin": 24
     },
     "DPIR1": {
-        "enabled": false,
+        "enabled": true,
         "simulated": true,
         "pin": 5
     },

@@ -1,0 +1,177 @@
+{
+  "title": "Smart Home - PI1 Sensors & Actuators",
+  "uid": "smarthome-pi1",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 3,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "DS1 - Door Sensor (Button)",
+      "type": "state-timeline",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "special", "options": { "match": "true", "result": { "text": "Pressed", "color": "semi-dark-red" } } },
+            { "type": "special", "options": { "match": "false", "result": { "text": "Released", "color": "green" } } }
+          ]
+        }
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "always",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DS1\")\n  |> filter(fn: (r) => r._field == \"value\")"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "DL - Door Light",
+      "type": "state-timeline",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "special", "options": { "match": "true", "result": { "text": "ON", "color": "yellow" } } },
+            { "type": "special", "options": { "match": "false", "result": { "text": "OFF", "color": "dark-gray" } } }
+          ]
+        }
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "always",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DL\")\n  |> filter(fn: (r) => r._field == \"value\")"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "DUS1 - Door Ultrasonic Sensor",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cm",
+          "min": 0,
+          "max": 400,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "showPoints": "always",
+            "pointSize": 5,
+            "spanNulls": false,
+            "gradientMode": "opacity"
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DUS1\")\n  |> filter(fn: (r) => r._field == \"value\")"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "DB - Door Buzzer",
+      "type": "state-timeline",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "special", "options": { "match": "true", "result": { "text": "Buzzing", "color": "semi-dark-red" } } },
+            { "type": "special", "options": { "match": "false", "result": { "text": "Idle", "color": "dark-gray" } } }
+          ]
+        }
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "always",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DB\")\n  |> filter(fn: (r) => r._field == \"value\")"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "DPIR1 - Door Motion Sensor",
+      "type": "state-timeline",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "special", "options": { "match": "true", "result": { "text": "Motion", "color": "orange" } } },
+            { "type": "special", "options": { "match": "false", "result": { "text": "Clear", "color": "green" } } }
+          ]
+        }
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "always",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DPIR1\")\n  |> filter(fn: (r) => r._field == \"value\")"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "DMS - Door Membrane Switch (key presses)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "left", "displayMode": "auto" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Value" }, "properties": [{ "id": "displayName", "value": "Key" }] }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Time", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket: \"smarthome\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"DMS\")\n  |> filter(fn: (r) => r._field == \"value\")\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sort(columns: [\"_time\"], desc: true)"
+        }
+      ]
+    }
+  ]
+}

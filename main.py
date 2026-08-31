@@ -11,6 +11,7 @@ from components.db import run_db
 from components.dms import run_dms
 from components.pir import run_pir
 from console import run_console
+from mqtt_client.publisher import start_publisher_daemon
 import time
 
 try:
@@ -26,6 +27,8 @@ if __name__ == "__main__":
     threads = []
     stop_event = threading.Event()
     try:
+        device_settings = settings['device']
+        mqtt_settings = settings['mqtt']
         ds1_settings = settings['DS1']
         dl_settings = settings['DL']
         dus1_settings = settings['DUS1']
@@ -36,30 +39,36 @@ if __name__ == "__main__":
         dl_queue = Queue()
         db_queue = Queue()
 
+        print(f"Device: {device_settings.get('name')} ({device_settings.get('pi_id')})")
+        start_publisher_daemon(mqtt_settings, stop_event, threads)
+
         if ds1_settings.get('enabled', True):
-            run_ds(ds1_settings, threads, stop_event, "DS1", dl_queue, db_queue)
-        
+            run_ds(ds1_settings, threads, stop_event, "DS1", dl_queue, db_queue, mqtt_settings, device_settings)
+
         if dl_settings.get('enabled', True):
-            run_dl(dl_settings, threads, stop_event, "DL", dl_queue)
-        
+            run_dl(dl_settings, threads, stop_event, "DL", dl_queue, mqtt_settings, device_settings)
+
         if dus1_settings.get('enabled', True):
-            run_uds(dus1_settings, threads, stop_event, "DUS1")
-        
+            run_uds(dus1_settings, threads, stop_event, "DUS1", mqtt_settings, device_settings)
+
         if db_settings.get('enabled', True):
-            run_db(db_settings, threads, stop_event, "DB", db_queue)
-        
+            run_db(db_settings, threads, stop_event, "DB", db_queue, mqtt_settings, device_settings)
+
         if dms_settings.get('enabled', True):
-            run_dms(dms_settings, threads, stop_event, "DMS")
-        
+            run_dms(dms_settings, threads, stop_event, "DMS", mqtt_settings, device_settings)
+
         if dpir1_settings.get('enabled', True):
-            run_pir(dpir1_settings, threads, stop_event, "DPIR1")
-        
+            run_pir(dpir1_settings, threads, stop_event, "DPIR1", mqtt_settings, device_settings)
+
         run_console(dl_queue, db_queue, stop_event)
 
     except KeyboardInterrupt:
         print('Stopping app')
+
+    finally:
+        stop_event.set()
         for t in threads:
-            stop_event.set()
+            t.join(timeout=5)
         try:
             GPIO.cleanup()
         except NameError:
