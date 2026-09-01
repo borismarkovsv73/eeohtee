@@ -80,9 +80,27 @@ def brgb_set():
     return jsonify({"ok": True})
 
 
+@app.post('/api/pi/<pi_id>/command')
+def pi_command(pi_id):
+    pi_id = pi_id.upper()
+    if pi_id not in ('PI1', 'PI2', 'PI3'):
+        return jsonify({"ok": False, "error": "unknown PI"}), 404
+    data = request.get_json(silent=True) or {}
+    command = str(data.get('command', '')).strip()
+    if not command:
+        return jsonify({"ok": False, "error": "missing command"}), 400
+    command_publisher.send(pi_id, 'console', {"command": command})
+    return jsonify({"ok": True, "queued": command})
+
+
 @app.get('/camera')
 def camera_view():
     return app.send_static_file('camera.html')
+
+
+@app.get('/')
+def dashboard_view():
+    return app.send_static_file('dashboard.html')
 
 
 if __name__ == '__main__':

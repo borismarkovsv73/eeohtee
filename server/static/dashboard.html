@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Home Control</title>
+<style>
+  :root {
+    --bg: #12141a;
+    --panel: #1b1e27;
+    --panel-2: #232733;
+    --border: #2e3341;
+    --text: #e8eaf0;
+    --muted: #8a90a2;
+    --accent: #4f8cff;
+    --ok: #35c26a;
+    --warn: #e0a83a;
+    --bad: #e05a4d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  header {
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .tabs { display: flex; gap: 4px; }
+  .tab {
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--muted);
+    border: 1px solid transparent;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--accent); color: #fff; }
+  .conn-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--muted);
+    display: inline-block; margin-right: 6px;
+  }
+  .conn-dot.up { background: var(--ok); }
+  .conn-dot.down { background: var(--bad); }
+  main { padding: 16px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .devices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 13px; }
+  .card .code { color: var(--muted); font-weight: 400; font-size: 11px; }
+  .field-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; }
+  .field-row .fname { color: var(--muted); }
+  .field-row .fval { font-weight: 600; }
+  .no-data { color: var(--muted); font-size: 12px; font-style: italic; }
+  .actions { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  button {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+  input[type=text], input[type=number] {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 12px;
+    width: 80px;
+  }
+  .inline-input { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .grafana-frame {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    height: 82vh;
+  }
+  .grafana-frame iframe { width: 100%; height: 100%; border: 0; }
+  .webc-card { grid-column: 1 / -1; }
+  .webc-stream { width: 100%; max-height: 320px; background: #000; border-radius: 6px; display: block; margin-top: 8px; }
+  .toast {
+    position: fixed; bottom: 16px; right: 16px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: 6px; font-size: 12px; color: var(--text);
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  .alarm-status { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat .label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  .stat .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .stat.active .value { color: var(--bad); }
+  .stat.armed .value { color: var(--warn); }
+  .stat.ok .value { color: var(--ok); }
+
+  .section-title { margin: 16px 0 8px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Smart Home Control</h1>
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-page="pi1">PI1</div>
+    <div class="tab" data-page="pi2">PI2</div>
+    <div class="tab" data-page="pi3">PI3</div>
+    <div class="tab" data-page="alarm">Alarm</div>
+  </div>
+  <span style="margin-left:auto;font-size:12px;color:var(--muted)">
+    <span class="conn-dot" id="connDot"></span><span id="connLabel">connecting...</span>
+  </span>
+</header>
+
+<main>
+  <div class="page active" id="page-pi1">
+    <div class="layout">
+      <div class="devices" id="devices-pi1"></div>
+      <div class="grafana-frame"><iframe id="grafana-pi1" src=""></iframe></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-pi2">
+    <div class="layout">
+      <div class="devices" id="devices-pi2"></div>
+      <div class="grafana-frame"><iframe id="grafana-pi2" src=""></iframe></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-pi3">
+    <div class="layout">
+      <div class="devices" id="devices-pi3"></div>
+      <div class="grafana-frame"><iframe id="grafana-pi3" src=""></iframe></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-alarm">
+    <div class="alarm-status" id="alarmStatus"></div>
+    <div class="layout">
+      <div>
+        <div class="section-title">Disarm / Arm</div>
+        <div class="card">
+          <div class="inline-input">
+            <input type="text" id="pinInput" placeholder="1234" maxlength="4">
+            <button class="primary" data-action="send-pin">Send PIN via DMS keypad</button>
+          </div>
+          <div class="inline-input">
+            <input type="text" id="pinInputWeb" placeholder="1234" maxlength="4">
+            <button class="danger" data-action="disarm-web">Disarm via Web App</button>
+          </div>
+        </div>
+
+        <div class="section-title">Manual triggers (per alarm rule)</div>
+        <div class="devices" id="alarmTriggers"></div>
+      </div>
+      <div class="grafana-frame"><iframe id="grafana-alarm" src=""></iframe></div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+const GRAFANA = 'http://localhost:3000';
+const WEBC_DEFAULT = 'http://localhost:8080/?action=stream';
+
+// {v} in a template gets replaced with whatever the user typed
+const PI_CONFIG = {
+  pi1: {
+    id: 'PI1',
+    grafana: `${GRAFANA}/d/smarthome-pi1/smart-home-pi1-sensors-and-actuators?orgId=1&kiosk`,
+    devices: [
+      { code: 'DS1', name: 'Door Sensor (Button)', actions: [
+        { label: 'Hold', cmd: 'DS1 HOLD' }, { label: 'Release', cmd: 'DS1 RELEASE' } ] },
+      { code: 'DL', name: 'Door Light', actions: [
+        { label: 'On', cmd: 'DL ON' }, { label: 'Off', cmd: 'DL OFF' } ] },
+      { code: 'DUS1', name: 'Door Ultrasonic Sensor',
+        input: { placeholder: 'cm', template: 'DUS1 SET {v}' } },
+      { code: 'DB', name: 'Door Buzzer', actions: [ { label: 'Buzz', cmd: 'DB BUZZ' } ] },
+      { code: 'DPIR1', name: 'Door Motion Sensor', actions: [
+        { label: 'Trigger motion', cmd: 'DPIR1 TRIGGER' } ] },
+      { code: 'DMS', name: 'Door Membrane Switch (keypad)',
+        input: { placeholder: 'digits', template: 'DMS KEY {v}' } },
+      { code: 'WEBC', name: 'Web Camera', webcam: true },
+    ],
+  },
+  pi2: {
+    id: 'PI2',
+    grafana: `${GRAFANA}/d/smarthome-pi2/smart-home-pi2-sensors-and-actuators?orgId=1&kiosk`,
+    devices: [
+      { code: 'DS2', name: 'Door Sensor (Button)', actions: [
+        { label: 'Hold', cmd: 'DS2 HOLD' }, { label: 'Release', cmd: 'DS2 RELEASE' } ] },
+      { code: 'DUS2', name: 'Door Ultrasonic Sensor',
+        input: { placeholder: 'cm', template: 'DUS2 SET {v}' } },
+      { code: 'DPIR2', name: 'Door Motion Sensor', actions: [
+        { label: 'Trigger motion', cmd: 'DPIR2 TRIGGER' } ] },
+      { code: '4SD', name: 'Kitchen Timer Display', actions: [
+        { label: 'Blink ON', cmd: '4SD BLINK ON' }, { label: 'Blink OFF', cmd: '4SD BLINK OFF' } ],
+        input: { placeholder: 'mmss', template: '4SD SET {v}' } },
+      { code: 'TIMER', name: 'Kitchen Stopwatch (virtual)',
+        input: { placeholder: 'seconds', template: 'TIMER SET {v}' },
+        input2: { placeholder: 'increment (s)', template: 'TIMER INCREMENT {v}' } },
+      { code: 'BTN', name: 'Kitchen Button', actions: [ { label: 'Press', cmd: 'BTN PRESS' } ] },
+      { code: 'DHT3', name: 'Kitchen Temp/Humidity' },
+      { code: 'GSG', name: 'Gyroscope / Vibration', actions: [
+        { label: 'Trigger movement', cmd: 'GSG TRIGGER' } ] },
+    ],
+  },
+  pi3: {
+    id: 'PI3',
+    grafana: `${GRAFANA}/d/smarthome-pi3/smart-home-pi3-sensors-and-actuators?orgId=1&kiosk`,
+    devices: [
+      { code: 'DHT1', name: 'Bedroom Temp/Humidity' },
+      { code: 'DHT2', name: 'Master Bedroom Temp/Humidity' },
+      { code: 'IR', name: 'IR Remote Receiver', actions: [
+        { label: 'Off', cmd: 'IR CODE 0x45' },
+        { label: 'Red', cmd: 'IR CODE 0x46' },
+        { label: 'Green', cmd: 'IR CODE 0x47' },
+        { label: 'Blue', cmd: 'IR CODE 0x44' },
+        { label: 'White', cmd: 'IR CODE 0x40' },
+      ] },
+      { code: 'BRGB', name: 'Bedroom RGB Light', rgb: true },
+      { code: 'LCD', name: 'Living Room Display',
+        input: { placeholder: 'line 0 text', template: 'LCD SET 0 {v}' },
+        input2: { placeholder: 'line 1 text', template: 'LCD SET 1 {v}' } },
+      { code: 'DPIR3', name: 'Living Room Motion Sensor', actions: [
+        { label: 'Trigger motion', cmd: 'DPIR3 TRIGGER' } ] },
+    ],
+  },
+};
+
+const ALARM_TRIGGERS = [
+  { pi: 'PI1', code: 'DS1', name: 'Front Door (DS1)', actions: [
+    { label: 'Hold open', cmd: 'DS1 HOLD' }, { label: 'Release', cmd: 'DS1 RELEASE' } ] },
+  { pi: 'PI2', code: 'DS2', name: 'Back Door (DS2)', actions: [
+    { label: 'Hold open', cmd: 'DS2 HOLD' }, { label: 'Release', cmd: 'DS2 RELEASE' } ] },
+  { pi: 'PI1', code: 'DPIR1', name: 'Front Door Motion', actions: [
+    { label: 'Trigger', cmd: 'DPIR1 TRIGGER' } ] },
+  { pi: 'PI2', code: 'DPIR2', name: 'Back Door Motion', actions: [
+    { label: 'Trigger', cmd: 'DPIR2 TRIGGER' } ] },
+  { pi: 'PI3', code: 'DPIR3', name: 'Living Room Motion', actions: [
+    { label: 'Trigger', cmd: 'DPIR3 TRIGGER' } ] },
+  { pi: 'PI2', code: 'GSG', name: 'Gyroscope', actions: [
+    { label: 'Trigger movement', cmd: 'GSG TRIGGER' } ] },
+  { pi: 'PI1', code: 'OCC1', name: 'Simulate person at front door', actions: [
+    { label: 'Simulate enter', simulate: { dus: 'DUS1', dpir: 'DPIR1', seq: [200, 30] } },
+    { label: 'Simulate exit', simulate: { dus: 'DUS1', dpir: 'DPIR1', seq: [30, 200] } } ] },
+  { pi: 'PI2', code: 'OCC2', name: 'Simulate person at back door', actions: [
+    { label: 'Simulate enter', simulate: { dus: 'DUS2', dpir: 'DPIR2', seq: [200, 30] } },
+    { label: 'Simulate exit', simulate: { dus: 'DUS2', dpir: 'DPIR2', seq: [30, 200] } } ] },
+];
+
+let latest = {};
+
+function idSafe(deviceKey) {
+  return deviceKey.replace('/', '-');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+async function sendCommand(piId, command) {
+  try {
+    const res = await fetch(`${API}/api/pi/${piId}/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command }),
+    });
+    const data = await res.json();
+    showToast(data.ok ? `${piId}: ${command}` : `${piId}: ${data.error || 'failed'}`);
+  } catch (e) {
+    showToast(`${piId}: request failed`);
+  }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function simulateMovement(pi, dusCode, dpirCode, d1, d2) {
+  await sendCommand(pi, `${dusCode} SET ${d1}`);
+  await sleep(700);
+  await sendCommand(pi, `${dusCode} SET ${d2}`);
+  await sleep(500);
+  await sendCommand(pi, `${dpirCode} TRIGGER`);
+}
+
+function formatValue(v) {
+  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toFixed(1);
+  return String(v);
+}
+
+function ageSeconds(ts) {
+  return Math.max(0, Math.round(Date.now() / 1000 - ts));
+}
+
+function renderFields(deviceKey) {
+  const fields = latest[deviceKey];
+  if (!fields) return '<div class="no-data">no data yet</div>';
+  let html = '';
+  for (const [field, reading] of Object.entries(fields)) {
+    const label = field === 'value' ? reading.code : field;
+    html += `<div class="field-row"><span class="fname">${label}</span><span class="fval">${formatValue(reading.value)} <span style="color:var(--muted);font-weight:400">(${ageSeconds(reading.timestamp)}s)</span></span></div>`;
+  }
+  return html;
+}
+
+function renderActions(piId, actions) {
+  if (!actions) return '';
+  const buttons = actions.map(a => {
+    if (a.simulate) {
+      return `<button data-action="simulate" data-pi="${piId}" data-dus="${a.simulate.dus}" data-dpir="${a.simulate.dpir}" data-seq="${a.simulate.seq.join(',')}">${a.label}</button>`;
+    }
+    return `<button data-action="cmd" data-pi="${piId}" data-cmd="${a.cmd}">${a.label}</button>`;
+  }).join('');
+  return `<div class="actions">${buttons}</div>`;
+}
+
+function renderInput(piId, deviceCode, inputSpec, suffix) {
+  if (!inputSpec) return '';
+  const inputId = `input-${piId}-${deviceCode}-${suffix}`;
+  return `<div class="inline-input">
+    <input type="text" id="${inputId}" placeholder="${inputSpec.placeholder}">
+    <button class="primary" data-action="input-cmd" data-pi="${piId}" data-input="${inputId}" data-template="${inputSpec.template}">Set</button>
+  </div>`;
+}
+
+function deviceCard(piId, device) {
+  const key = `${piId}/${device.code}`;
+  const cardId = idSafe(key);
+  let extra = '';
+
+  if (device.webcam) {
+    extra = `
+      <div class="inline-input">
+        <input type="text" id="webcUrl" value="${WEBC_DEFAULT}" style="width:220px">
+        <button data-action="load-webc">Load stream</button>
+      </div>
+      <img class="webc-stream" id="webcImg" src="${WEBC_DEFAULT}">`;
+  }
+
+  if (device.rgb) {
+    extra = `
+      <div class="inline-input">
+        <input type="number" id="rgb-r-${piId}" placeholder="R" min="0" max="255">
+        <input type="number" id="rgb-g-${piId}" placeholder="G" min="0" max="255">
+        <input type="number" id="rgb-b-${piId}" placeholder="B" min="0" max="255">
+        <button class="primary" data-action="rgb-set" data-pi="${piId}">Set</button>
+        <button class="danger" data-action="cmd" data-pi="${piId}" data-cmd="BRGB OFF">Off</button>
+      </div>`;
+  }
+
+  return `<div class="card${device.webcam ? ' webc-card' : ''}" id="card-${cardId}">
+    <h3>${device.name} <span class="code">${device.code}</span></h3>
+    <div class="fields">${renderFields(key)}</div>
+    ${extra}
+    ${renderActions(piId, device.actions)}
+    ${renderInput(piId, device.code, device.input, '1')}
+    ${renderInput(piId, device.code, device.input2, '2')}
+  </div>`;
+}
+
+function renderPiPage(pageKey) {
+  const config = PI_CONFIG[pageKey];
+  const container = document.getElementById(`devices-${pageKey}`);
+  container.innerHTML = config.devices.map(d => deviceCard(config.id, d)).join('');
+}
+
+function refreshFieldsOnly(pageKey) {
+  const config = PI_CONFIG[pageKey];
+  for (const device of config.devices) {
+    const key = `${config.id}/${device.code}`;
+    const el = document.querySelector(`#card-${idSafe(key)} .fields`);
+    if (el) el.innerHTML = renderFields(key);
+  }
+}
+
+function renderAlarmTriggers() {
+  const container = document.getElementById('alarmTriggers');
+  container.innerHTML = ALARM_TRIGGERS.map(t =>
+    `<div class="card"><h3>${t.name} <span class="code">${t.pi}/${t.code}</span></h3>${renderActions(t.pi, t.actions)}</div>`
+  ).join('') + `
+    <div class="card">
+      <h3>Front Door Distance <span class="code">PI1/DUS1</span></h3>
+      ${renderInput('PI1', 'DUS1', { placeholder: 'cm', template: 'DUS1 SET {v}' }, 'a')}
+    </div>
+    <div class="card">
+      <h3>Back Door Distance <span class="code">PI2/DUS2</span></h3>
+      ${renderInput('PI2', 'DUS2', { placeholder: 'cm', template: 'DUS2 SET {v}' }, 'a')}
+    </div>
+    <div class="card">
+      <h3>PIN Keypad <span class="code">PI1/DMS</span></h3>
+      ${renderInput('PI1', 'DMS', { placeholder: 'digit(s)', template: 'DMS KEY {v}' }, 'a')}
+    </div>`;
+}
+
+function sendPin() {
+  const pin = document.getElementById('pinInput').value.trim();
+  if (!pin) return showToast('Enter a PIN first');
+  sendCommand('PI1', `DMS KEY ${pin}`);
+}
+
+async function disarmWeb() {
+  const pin = document.getElementById('pinInputWeb').value.trim();
+  try {
+    const res = await fetch(`${API}/api/alarm/disarm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+    const data = await res.json();
+    showToast(data.ok ? 'Disarmed' : `Failed: ${data.error}`);
+  } catch (e) {
+    showToast('Request failed');
+  }
+}
+
+function renderAlarmStatus(state) {
+  const el = document.getElementById('alarmStatus');
+  el.innerHTML = `
+    <div class="stat ${state.alarm_active ? 'active' : 'ok'}">
+      <div class="label">Alarm</div><div class="value">${state.alarm_active ? 'ACTIVE' : 'clear'}</div>
+    </div>
+    <div class="stat ${state.armed ? 'armed' : ''}">
+      <div class="label">Armed</div><div class="value">${state.armed ? 'YES' : 'no'}</div>
+    </div>
+    <div class="stat"><div class="label">Occupancy</div><div class="value">${state.occupancy}</div></div>
+    <div class="stat"><div class="label">Reason</div><div class="value" style="font-size:13px">${state.alarm_reason || (state.pending_arm ? 'arming...' : '-')}</div></div>
+  `;
+}
+
+async function pollLatest() {
+  try {
+    const res = await fetch(`${API}/api/latest`);
+    latest = await res.json();
+    setConn(true);
+    ['pi1', 'pi2', 'pi3'].forEach(refreshFieldsOnly);
+  } catch (e) {
+    setConn(false);
+  }
+}
+
+async function pollAlarm() {
+  try {
+    const res = await fetch(`${API}/api/alarm`);
+    renderAlarmStatus(await res.json());
+  } catch (e) { /* covered by pollLatest's conn indicator */ }
+}
+
+function setConn(up) {
+  document.getElementById('connDot').className = 'conn-dot ' + (up ? 'up' : 'down');
+  document.getElementById('connLabel').textContent = up ? 'connected' : 'disconnected';
+}
+
+function switchTab(pageKey) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.page === pageKey));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${pageKey}`));
+  const frame = document.getElementById(`grafana-${pageKey}`);
+  if (frame && !frame.src) {
+    frame.src = pageKey === 'alarm'
+      ? `${GRAFANA}/d/smarthome-alarm/smart-home-alarm-system?orgId=1&kiosk`
+      : PI_CONFIG[pageKey].grafana;
+  }
+}
+
+document.getElementById('tabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('.tab');
+  if (tab) switchTab(tab.dataset.page);
+});
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const pi = btn.dataset.pi;
+
+  if (action === 'cmd') {
+    sendCommand(pi, btn.dataset.cmd);
+  } else if (action === 'input-cmd') {
+    const input = document.getElementById(btn.dataset.input);
+    const val = input.value.trim();
+    if (!val) { showToast('Enter a value first'); return; }
+    sendCommand(pi, btn.dataset.template.replace('{v}', val));
+  } else if (action === 'rgb-set') {
+    const r = document.getElementById(`rgb-r-${pi}`).value || 0;
+    const g = document.getElementById(`rgb-g-${pi}`).value || 0;
+    const b = document.getElementById(`rgb-b-${pi}`).value || 0;
+    sendCommand(pi, `BRGB SET ${r} ${g} ${b}`);
+  } else if (action === 'load-webc') {
+    document.getElementById('webcImg').src = document.getElementById('webcUrl').value;
+  } else if (action === 'simulate') {
+    const [d1, d2] = btn.dataset.seq.split(',');
+    simulateMovement(pi, btn.dataset.dus, btn.dataset.dpir, d1, d2);
+  } else if (action === 'send-pin') {
+    sendPin();
+  } else if (action === 'disarm-web') {
+    disarmWeb();
+  }
+});
+
+renderPiPage('pi1');
+renderPiPage('pi2');
+renderPiPage('pi3');
+renderAlarmTriggers();
+switchTab('pi1');
+pollLatest();
+pollAlarm();
+setInterval(pollLatest, 2000);
+setInterval(pollAlarm, 2000);
+</script>
+
+</body>
+</html>

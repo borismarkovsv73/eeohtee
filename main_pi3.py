@@ -178,7 +178,7 @@ if __name__ == "__main__":
                 "commands": {"CODE": trigger_ir_code},
             },
         ]
-        run_console(stop_event, actuators, triggers)
+        run_console(stop_event, actuators, triggers, mqtt_settings, device_settings)
 
     except KeyboardInterrupt:
         print('Stopping app')
