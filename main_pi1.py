@@ -64,8 +64,7 @@ if __name__ == "__main__":
             dms_callback = run_dms(dms_settings, threads, stop_event, "DMS", mqtt_settings, device_settings)
 
         if dpir1_settings.get('enabled', True):
-            # item 1: motion on DPIR1 turns DL1 on for 10s - purely local to
-            # PI1, no server round-trip needed since both devices live here
+            # DL is local to PI1, same as DPIR1, so no server round-trip needed
             def dpir1_turns_on_dl():
                 dl_queue.put({"code": "MOTION_ON", "duration": 10})
 

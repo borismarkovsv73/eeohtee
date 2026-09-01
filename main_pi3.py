@@ -22,7 +22,7 @@ except:
     pass
 
 
-# item 9: fixed remote-to-color mapping, matching simulators/ir.py's REMOTE_CODES
+# fixed remote-to-color mapping; codes must match simulators/ir.py's REMOTE_CODES
 IR_REMOTE_MAP = {
     "0x45": {"code": "MANUAL_OFF", "color": (0, 0, 0)},
     "0x46": {"code": "MANUAL_SET", "color": (255, 0, 0)},
@@ -77,9 +77,9 @@ if __name__ == "__main__":
 
         dpir3_callback = ir_callback = None
 
-        # item 7: DHT1/DHT2 are local (updated via on_reading hooks below);
-        # DHT3 lives on PI2, so it's observed directly over MQTT instead of
-        # going through the server - PIs can subscribe to each other's
+        # DHT1/DHT2 are local (updated via on_reading hooks below); DHT3 lives
+        # on PI2, so it's observed directly over MQTT instead of going
+        # through the server - PIs can subscribe to each other's
         # already-published sensor topics, no new infrastructure needed
         dht_readings = {name: {"temperature": None, "humidity": None} for name in DHT_ROTATION_ORDER}
 
@@ -105,8 +105,7 @@ if __name__ == "__main__":
         start_remote_reading_subscriber(mqtt_settings, [("PI2", "DHT3", on_remote_dht3)], stop_event)
 
         if ir_settings.get('enabled', True):
-            # item 9: remote-control button presses drive BRGB directly -
-            # local to PI3, since IR and BRGB both live here
+            # BRGB is local to PI3, same as IR, so no server round-trip needed
             def handle_ir_code(code):
                 action = IR_REMOTE_MAP.get(code)
                 if action:

@@ -2,10 +2,10 @@ import threading
 
 
 def run_timer(sd4_queue, timer_queue, stop_event):
-    """Kitchen stopwatch (item 8) - purely local to PI2, since BTN and 4SD
-    both live there. Drives the 4SD display through its normal queue (the
-    same one console/remote commands use), so no changes were needed to
-    the 4SD actuator itself.
+    """Kitchen stopwatch - purely local to PI2, since BTN and 4SD both live
+    there. Drives the 4SD display through its normal queue (the same one
+    console/remote commands use), so no changes were needed to the 4SD
+    actuator itself.
 
     timer_queue accepts:
       {"code": "SET_TIME", "seconds": N}       - set the countdown (Web app)

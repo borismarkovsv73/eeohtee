@@ -16,10 +16,12 @@ SEGMENT_MAP = {
 class FourDigitDisplay(object):
     def __init__(self, segment_pins, digit_pins):
         self.segment_pins = segment_pins  # [a, b, c, d, e, f, g]
-        self.digit_pins = digit_pins      # [d1, d2, d3, d4]
+        self.digit_pins = digit_pins      # [d1, d2, d3, d4] - active-low select
         GPIO.setmode(GPIO.BCM)
-        for pin in self.segment_pins + self.digit_pins:
+        for pin in self.segment_pins:
             GPIO.setup(pin, GPIO.OUT)
+        for pin in self.digit_pins:
+            GPIO.setup(pin, GPIO.OUT, initial=GPIO.HIGH)  # HIGH = deselected
         self.buffer = "    "
         self.blinking = False
         self._blink_on = True
@@ -32,9 +34,9 @@ class FourDigitDisplay(object):
         pattern = SEGMENT_MAP.get(char, 0)
         for bit, pin in enumerate(self.segment_pins):
             GPIO.output(pin, (pattern >> bit) & 1 == 1)
-        GPIO.output(self.digit_pins[index], True)
+        GPIO.output(self.digit_pins[index], False)  # select (active-low)
         time.sleep(0.002)
-        GPIO.output(self.digit_pins[index], False)
+        GPIO.output(self.digit_pins[index], True)   # deselect
 
     def _refresh_loop(self):
         while not self._stop.is_set():

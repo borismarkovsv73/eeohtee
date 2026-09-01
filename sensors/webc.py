@@ -3,10 +3,10 @@ import time
 
 
 def run_webc_process(settings, stop_event):
-    """Runs the real mjpg_streamer binary as a subprocess, same invocation
-    as the course tutorial: input_uvc.so grabs frames from the camera,
-    output_http.so serves them as an MJPEG stream on the given port.
-    Expects mjpg_streamer to already be installed/built on the Pi.
+    """Runs the real mjpg_streamer binary as a subprocess: input_uvc.so
+    grabs frames from the camera, output_http.so serves them as an MJPEG
+    stream on the given port. Expects mjpg_streamer to already be
+    installed/built on the Pi.
     """
     device = settings.get('device', '/dev/video0')
     port = settings.get('port', 8080)

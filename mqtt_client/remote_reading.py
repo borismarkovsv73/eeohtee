@@ -6,8 +6,8 @@ import paho.mqtt.client as mqtt
 
 def start_remote_reading_subscriber(mqtt_settings, subscriptions, stop_event):
     """Lets a PI observe another PI's already-published sensor readings
-    directly over MQTT (e.g. PI3's LCD wanting PI2's DHT3 for item 7),
-    without routing through the server. `subscriptions` is a list of
+    directly over MQTT (e.g. PI3's LCD wanting PI2's DHT3), without
+    routing through the server. `subscriptions` is a list of
     (pi_id, sensor_code, callback) tuples; callback(reading: dict) fires
     once per reading in each incoming batch on that topic.
     """

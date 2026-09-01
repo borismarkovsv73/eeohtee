@@ -20,10 +20,9 @@ class AlarmEngine(object):
     (`_active_conditions`, keyed by e.g. "DOOR_HELD_OPEN:DS1" or
     "GSG_MOVEMENT") rather than a single flag - alarm_active is just
     "is this set non-empty". That's what lets a door-triggered condition
-    clear itself the moment that door closes (per spec: "uključiti ALARM
-    dok se stanje DS-a ne promeni"), independent of whatever else may
-    also be active. Conditions with no natural resolution (GSG, empty-
-    house motion) only ever clear via PIN/web disarm.
+    clear itself the moment that door closes, independent of whatever
+    else may also be active. Conditions with no natural resolution (GSG,
+    empty-house motion) only ever clear via PIN/web disarm.
     """
 
     PIR_CODES = {"DPIR1", "DPIR2", "DPIR3"}
@@ -104,10 +103,8 @@ class AlarmEngine(object):
                 self._ds_since.pop(code, None)
                 self._armed_door_deadline.pop(code, None)
         if not pressed:
-            # item 3: "uključiti ALARM dok se stanje DS-a ne promeni" - the
-            # door changing state (closing) resolves exactly the alarm
-            # conditions that door itself caused, regardless of anything
-            # else going on
+            # closing the door resolves exactly the alarm conditions that
+            # door itself caused, regardless of anything else going on
             self._clear_condition(f"DOOR_HELD_OPEN:{code}")
             self._clear_condition(f"UNAUTHORIZED_ENTRY:{code}")
 
