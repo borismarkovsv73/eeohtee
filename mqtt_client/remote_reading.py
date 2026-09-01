@@ -1,0 +1,49 @@
+import json
+import threading
+
+import paho.mqtt.client as mqtt
+
+
+def start_remote_reading_subscriber(mqtt_settings, subscriptions, stop_event):
+    """Lets a PI observe another PI's already-published sensor readings
+    directly over MQTT (e.g. PI3's LCD wanting PI2's DHT3 for item 7),
+    without routing through the server. `subscriptions` is a list of
+    (pi_id, sensor_code, callback) tuples; callback(reading: dict) fires
+    once per reading in each incoming batch on that topic.
+    """
+    prefix = mqtt_settings.get("topic_prefix", "smarthome")
+    callbacks_by_topic = {}
+    for pi_id, sensor_code, callback in subscriptions:
+        topic = f"{prefix}/{pi_id}/{sensor_code}"
+        callbacks_by_topic[topic] = callback
+
+    def on_connect(client, userdata, flags, rc):
+        for topic in callbacks_by_topic:
+            client.subscribe(topic)
+
+    def on_message(client, userdata, msg):
+        callback = callbacks_by_topic.get(msg.topic)
+        if callback is None:
+            return
+        try:
+            payload = json.loads(msg.payload.decode('utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return
+        for reading in payload.get('readings', []):
+            callback(reading)
+
+    client_id = mqtt_settings.get("client_id", "pi-remote") + "-remote"
+    client = mqtt.Client(client_id=client_id)
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.connect(mqtt_settings.get("broker", "localhost"), mqtt_settings.get("port", 1883))
+    client.loop_start()
+
+    def watch_stop():
+        stop_event.wait()
+        client.loop_stop()
+        client.disconnect()
+
+    watcher = threading.Thread(target=watch_stop, daemon=True)
+    watcher.start()
+    return client

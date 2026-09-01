@@ -15,7 +15,7 @@ def dht_callback(reading, code, name):
     print("="*20 + f"\nName: {name}\nTimestamp: {time.strftime('%H:%M:%S', t)}\nCode: {code}\nTemperature: {temperature}C\nHumidity: {humidity}%\n")
 
 
-def run_dht(settings, threads, stop_event, name, mqtt_settings, device_settings):
+def run_dht(settings, threads, stop_event, name, mqtt_settings, device_settings, on_reading=None):
     simulated = settings['simulated']
     topic = resolve_topic(mqtt_settings, settings, device_settings, name)
 
@@ -24,6 +24,8 @@ def run_dht(settings, threads, stop_event, name, mqtt_settings, device_settings)
         temperature, humidity = reading
         enqueue_reading(topic, sensor_name, code, temperature, simulated, extra={"field": "temperature"})
         enqueue_reading(topic, sensor_name, code, humidity, simulated, extra={"field": "humidity"})
+        if on_reading:
+            on_reading(temperature, humidity)
 
     if simulated:
         print(f"Starting {name} simulator")
@@ -43,3 +45,5 @@ def run_dht(settings, threads, stop_event, name, mqtt_settings, device_settings)
         sensor_thread.start()
         threads.append(sensor_thread)
         print(f"{name} loop started")
+
+    return callback

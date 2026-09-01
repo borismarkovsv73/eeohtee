@@ -9,7 +9,7 @@
         "port": 1883,
         "client_id": "pi2-publisher",
         "topic_prefix": "smarthome",
-        "batch_interval": 5
+        "batch_interval": 1
     },
     "DS2": {
         "enabled": true,

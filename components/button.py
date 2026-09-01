@@ -15,13 +15,15 @@ def button_callback(pressed, code, name):
     print("="*20 + f"\nName: {name}\nTimestamp: {time.strftime('%H:%M:%S', t)}\nCode: {code}\nState: {state}\n")
 
 
-def run_button(settings, threads, stop_event, name, mqtt_settings, device_settings):
+def run_button(settings, threads, stop_event, name, mqtt_settings, device_settings, on_press=None):
     simulated = settings['simulated']
     topic = resolve_topic(mqtt_settings, settings, device_settings, name)
 
     def callback(pressed, code, sensor_name):
         button_callback(pressed, code, sensor_name)
         enqueue_reading(topic, sensor_name, code, pressed, simulated)
+        if pressed and on_press:
+            on_press()
 
     if simulated:
         print(f"Starting {name} simulator")
@@ -41,3 +43,5 @@ def run_button(settings, threads, stop_event, name, mqtt_settings, device_settin
         sensor_thread.start()
         threads.append(sensor_thread)
         print(f"{name} loop started")
+
+    return callback

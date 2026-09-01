@@ -15,5 +15,13 @@
     "http": {
         "host": "0.0.0.0",
         "port": 5000
+    },
+    "alarm": {
+        "pin": "1234",
+        "arm_delay_seconds": 10,
+        "door_open_threshold_seconds": 5,
+        "door_grace_period_seconds": 3,
+        "distance_window_seconds": 5,
+        "direction_threshold_cm": 15
     }
 }

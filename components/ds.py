@@ -41,3 +41,5 @@ def run_ds(settings, threads, stop_event, name, dl_queue, db_queue, mqtt_setting
         sensor_thread.start()
         threads.append(sensor_thread)
         print(f"{name} loop started")
+
+    return callback
