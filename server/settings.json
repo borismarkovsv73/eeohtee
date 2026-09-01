@@ -23,5 +23,9 @@
         "door_grace_period_seconds": 3,
         "distance_window_seconds": 5,
         "direction_threshold_cm": 15
+    },
+    "web": {
+        "webc_url": "http://localhost:8080/?action=stream",
+        "grafana_url": null
     }
 }

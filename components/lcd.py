@@ -25,6 +25,8 @@ def run_lcd(settings, threads, stop_event, name, queue, mqtt_settings, device_se
         enqueue_reading(topic, sensor_name, code, line0, simulated, extra={"field": "line0"})
         enqueue_reading(topic, sensor_name, code, line1, simulated, extra={"field": "line1"})
 
+    callback(("", ""), "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         actuator_thread = threading.Thread(

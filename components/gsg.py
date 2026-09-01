@@ -23,6 +23,8 @@ def run_gsg(settings, threads, stop_event, name, mqtt_settings, device_settings)
         gsg_callback(moved, code, sensor_name)
         enqueue_reading(topic, sensor_name, code, moved, simulated)
 
+    callback(False, "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         sensor_thread = threading.Thread(

@@ -12,6 +12,7 @@ from components.pir import run_pir
 from console import run_console
 from mqtt_client.publisher import start_publisher_daemon
 from mqtt_client.remote_reading import start_remote_reading_subscriber
+from mqtt_client.commands import start_command_subscriber
 import time
 
 try:
@@ -72,6 +73,7 @@ if __name__ == "__main__":
 
         print(f"Device: {device_settings.get('name')} ({device_settings.get('pi_id')})")
         start_publisher_daemon(mqtt_settings, stop_event, threads)
+        start_command_subscriber(mqtt_settings, device_settings, {"BRGB": brgb_queue, "LCD": lcd_queue}, stop_event)
 
         dpir3_callback = ir_callback = None
 

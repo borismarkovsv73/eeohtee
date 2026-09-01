@@ -93,6 +93,15 @@ def pi_command(pi_id):
     return jsonify({"ok": True, "queued": command})
 
 
+@app.get('/api/config')
+def web_config():
+    web_settings = settings.get('web', {})
+    return jsonify({
+        "webc_url": web_settings.get('webc_url', 'http://localhost:8080/?action=stream'),
+        "grafana_url": web_settings.get('grafana_url'),
+    })
+
+
 @app.get('/camera')
 def camera_view():
     return app.send_static_file('camera.html')

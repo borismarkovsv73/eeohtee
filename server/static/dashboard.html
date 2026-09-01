@@ -188,14 +188,24 @@
 
 <script>
 const API = '';
-const GRAFANA = 'http://localhost:3000';
-const WEBC_DEFAULT = 'http://localhost:8080/?action=stream';
+
+// Sensible defaults for local dev (server, Grafana and the webcam all on
+// localhost). Both get overridden from GET /api/config on load, so a
+// real deployment (Grafana on the same host as the server but reached
+// via a LAN IP, webcam physically on a different Pi) just works without
+// editing this file - see server/settings.json's "web" block.
+let GRAFANA_BASE = `${window.location.protocol}//${window.location.hostname}:3000`;
+let WEBC_DEFAULT = 'http://localhost:8080/?action=stream';
+
+function grafanaFrameUrl(dashboardPath) {
+  return `${GRAFANA_BASE}/d/${dashboardPath}?orgId=1&kiosk`;
+}
 
 // {v} in a template gets replaced with whatever the user typed
 const PI_CONFIG = {
   pi1: {
     id: 'PI1',
-    grafana: `${GRAFANA}/d/smarthome-pi1/smart-home-pi1-sensors-and-actuators?orgId=1&kiosk`,
+    dashboardPath: 'smarthome-pi1/smart-home-pi1-sensors-and-actuators',
     devices: [
       { code: 'DS1', name: 'Door Sensor (Button)', actions: [
         { label: 'Hold', cmd: 'DS1 HOLD' }, { label: 'Release', cmd: 'DS1 RELEASE' } ] },
@@ -213,7 +223,7 @@ const PI_CONFIG = {
   },
   pi2: {
     id: 'PI2',
-    grafana: `${GRAFANA}/d/smarthome-pi2/smart-home-pi2-sensors-and-actuators?orgId=1&kiosk`,
+    dashboardPath: 'smarthome-pi2/smart-home-pi2-sensors-and-actuators',
     devices: [
       { code: 'DS2', name: 'Door Sensor (Button)', actions: [
         { label: 'Hold', cmd: 'DS2 HOLD' }, { label: 'Release', cmd: 'DS2 RELEASE' } ] },
@@ -235,7 +245,7 @@ const PI_CONFIG = {
   },
   pi3: {
     id: 'PI3',
-    grafana: `${GRAFANA}/d/smarthome-pi3/smart-home-pi3-sensors-and-actuators?orgId=1&kiosk`,
+    dashboardPath: 'smarthome-pi3/smart-home-pi3-sensors-and-actuators',
     devices: [
       { code: 'DHT1', name: 'Bedroom Temp/Humidity' },
       { code: 'DHT2', name: 'Master Bedroom Temp/Humidity' },
@@ -489,8 +499,8 @@ function switchTab(pageKey) {
   const frame = document.getElementById(`grafana-${pageKey}`);
   if (frame && !frame.src) {
     frame.src = pageKey === 'alarm'
-      ? `${GRAFANA}/d/smarthome-alarm/smart-home-alarm-system?orgId=1&kiosk`
-      : PI_CONFIG[pageKey].grafana;
+      ? grafanaFrameUrl('smarthome-alarm/smart-home-alarm-system')
+      : grafanaFrameUrl(PI_CONFIG[pageKey].dashboardPath);
   }
 }
 
@@ -529,15 +539,29 @@ document.addEventListener('click', (e) => {
   }
 });
 
-renderPiPage('pi1');
-renderPiPage('pi2');
-renderPiPage('pi3');
-renderAlarmTriggers();
-switchTab('pi1');
-pollLatest();
-pollAlarm();
-setInterval(pollLatest, 2000);
-setInterval(pollAlarm, 2000);
+async function loadConfig() {
+  try {
+    const res = await fetch(`${API}/api/config`);
+    const cfg = await res.json();
+    if (cfg.webc_url) WEBC_DEFAULT = cfg.webc_url;
+    if (cfg.grafana_url) GRAFANA_BASE = cfg.grafana_url.replace(/\/$/, '');
+  } catch (e) {
+    // keep the localhost-based defaults
+  }
+}
+
+(async function init() {
+  await loadConfig();
+  renderPiPage('pi1');
+  renderPiPage('pi2');
+  renderPiPage('pi3');
+  renderAlarmTriggers();
+  switchTab('pi1');
+  pollLatest();
+  pollAlarm();
+  setInterval(pollLatest, 2000);
+  setInterval(pollAlarm, 2000);
+})();
 </script>
 
 </body>

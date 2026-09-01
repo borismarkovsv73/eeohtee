@@ -25,6 +25,8 @@ def run_sd4(settings, threads, stop_event, name, queue, mqtt_settings, device_se
         enqueue_reading(topic, sensor_name, code, value, simulated, extra={"field": "display"})
         enqueue_reading(topic, sensor_name, code, blinking, simulated, extra={"field": "blinking"})
 
+    callback(("0000", False), "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         actuator_thread = threading.Thread(
