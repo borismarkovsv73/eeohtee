@@ -83,18 +83,23 @@ if __name__ == "__main__":
         # already-published sensor topics, no new infrastructure needed
         dht_readings = {name: {"temperature": None, "humidity": None} for name in DHT_ROTATION_ORDER}
 
+        # dht_readings entries are replaced wholesale (never mutated in
+        # place) so the LCD rotation thread's read of dht_readings[name]
+        # is always a complete, consistent snapshot - a single dict-item
+        # assignment is atomic under the GIL, two separate key writes
+        # into the same nested dict are not
         def make_dht_hook(name):
             def hook(temperature, humidity):
-                dht_readings[name]["temperature"] = temperature
-                dht_readings[name]["humidity"] = humidity
+                dht_readings[name] = {"temperature": temperature, "humidity": humidity}
             return hook
 
         def on_remote_dht3(reading):
             field = reading.get("field", "value")
-            if field == "temperature":
-                dht_readings["DHT3"]["temperature"] = reading.get("value")
-            elif field == "humidity":
-                dht_readings["DHT3"]["humidity"] = reading.get("value")
+            if field not in ("temperature", "humidity"):
+                return
+            updated = dict(dht_readings["DHT3"])
+            updated[field] = reading.get("value")
+            dht_readings["DHT3"] = updated
 
         if dht1_settings.get('enabled', True):
             run_dht(dht1_settings, threads, stop_event, "DHT1", mqtt_settings, device_settings, on_reading=make_dht_hook("DHT1"))

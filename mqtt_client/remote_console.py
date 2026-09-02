@@ -7,11 +7,6 @@ from console import dispatch_command
 
 
 def start_remote_console(mqtt_settings, device_settings, by_code, stop_event):
-    """Lets a Web UI (via the server) run any console command remotely -
-    dispatched through the exact same function and registry the
-    interactive console uses, so there is exactly one command grammar.
-    Subscribes to '<prefix>/<pi_id>/console/cmd', payload {"command": "..."}.
-    """
     prefix = mqtt_settings.get("topic_prefix", "smarthome")
     pi_id = device_settings.get("pi_id", "PI1")
     topic = f"{prefix}/{pi_id}/console/cmd"

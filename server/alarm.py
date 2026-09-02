@@ -4,27 +4,6 @@ from collections import deque
 
 
 class AlarmEngine(object):
-    """Central cross-PI alarm/occupancy/arming state machine.
-
-    Lives on the server because it's the only process that already sees
-    every PI's sensor data (via MQTT). To actuate DB on PI1 it publishes
-    an MQTT command through `command_publisher`, which PI1's own command
-    subscriber forwards onto DB's existing queue - no actuator code
-    needed to change.
-
-    A single lock protects the small pieces of shared state below; it is
-    never held across I/O (Influx writes, MQTT publishes) - those happen
-    after releasing it, same pattern as mqtt_client/buffer.py.
-
-    ALARM is modeled as a set of independently-tracked "conditions"
-    (`_active_conditions`, keyed by e.g. "DOOR_HELD_OPEN:DS1" or
-    "GSG_MOVEMENT") rather than a single flag - alarm_active is just
-    "is this set non-empty". That's what lets a door-triggered condition
-    clear itself the moment that door closes, independent of whatever
-    else may also be active. Conditions with no natural resolution (GSG,
-    empty-house motion) only ever clear via PIN/web disarm.
-    """
-
     PIR_CODES = {"DPIR1", "DPIR2", "DPIR3"}
     DOOR_TO_DISTANCE = {"DS1": "DUS1", "DS2": "DUS2"}
     PIR_TO_DISTANCE = {"DPIR1": "DUS1", "DPIR2": "DUS2"}
@@ -103,35 +82,37 @@ class AlarmEngine(object):
                 self._ds_since.pop(code, None)
                 self._armed_door_deadline.pop(code, None)
         if not pressed:
-            # closing the door resolves exactly the alarm conditions that
-            # door itself caused, regardless of anything else going on
+            # only DOOR_HELD_OPEN resolves this way - UNAUTHORIZED_ENTRY has
+            # no such exit condition, it requires PIN/web disarm regardless
+            # of whether the door is later closed
             self._clear_condition(f"DOOR_HELD_OPEN:{code}")
-            self._clear_condition(f"UNAUTHORIZED_ENTRY:{code}")
 
     def _handle_pir(self, code, motion, ts):
         if not motion:
             return
+
+        direction = None
+        distance_code = self.PIR_TO_DISTANCE.get(code)
+        if distance_code:
+            with self._lock:
+                last_event = self._last_occupancy_event.get(code)
+                debounced = last_event is not None and (ts - last_event) < self.distance_window
+            if not debounced:
+                direction = self._infer_direction(distance_code, ts)
+                if direction in ("enter", "exit"):
+                    # only a crossing that actually gets counted consumes
+                    # the debounce window - an inconclusive/no-data PIR
+                    # blip must not block a real crossing shortly after
+                    with self._lock:
+                        self._last_occupancy_event[code] = ts
+
         with self._lock:
             occupancy_now = self.occupancy
-        if occupancy_now <= 0:
+        if occupancy_now <= 0 and direction != "enter":
+            # a confidently-inferred entry explains the motion on its own -
+            # only treat it as suspicious if it's not that
             self._activate_alarm("EMPTY_HOUSE_MOTION", code, "EMPTY_HOUSE_MOTION")
 
-        distance_code = self.PIR_TO_DISTANCE.get(code)
-        if not distance_code:
-            return
-
-        with self._lock:
-            last_event = self._last_occupancy_event.get(code)
-            # debounce: a burst of PIR blips from one crossing (or from the
-            # background random simulator firing again moments later)
-            # shouldn't each independently count as a separate person
-            debounced = last_event is not None and (ts - last_event) < self.distance_window
-            if not debounced:
-                self._last_occupancy_event[code] = ts
-        if debounced:
-            return
-
-        direction = self._infer_direction(distance_code, ts)
         if direction == "enter":
             self._adjust_occupancy(1)
         elif direction == "exit":
@@ -152,13 +133,9 @@ class AlarmEngine(object):
                 dq.popleft()
 
     def _infer_direction(self, code, ts):
-        # filtered relative to the triggering event's own timestamp, not
-        # whenever the deque last happened to get trimmed - otherwise a
-        # PIR event long after the last distance reading would reuse a
-        # stale trend instead of finding "no recent data"
         cutoff = ts - self.distance_window
         with self._lock:
-            dq = [(t, d) for t, d in self._distance_history.get(code, ()) if t >= cutoff]
+            dq = [(t, d) for t, d in self._distance_history.get(code, ()) if cutoff <= t <= ts]
         if len(dq) < 2:
             return None
         _, first_d = dq[0]
@@ -248,11 +225,6 @@ class AlarmEngine(object):
             self.armed = False
             self._pending_arm_deadline = None
             self._armed_door_deadline.clear()
-            # restart the door-open countdown so disarming doesn't get
-            # immediately undone by the ticker re-triggering on a door
-            # that's still open; if it's genuinely still open 5s from now
-            # (rather than from whenever it was first opened) it can still
-            # legitimately re-trigger
             now = time.time()
             for code in self._ds_since:
                 self._ds_since[code] = now

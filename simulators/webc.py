@@ -10,9 +10,6 @@ _BOUNDARY = "smarthomecam"
 
 
 def _make_png(width, height, color):
-    """Builds a valid solid-color PNG by hand (stdlib zlib/struct only) -
-    good enough as a placeholder frame; no image library dependency.
-    """
     def chunk(tag, data):
         return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data))
 

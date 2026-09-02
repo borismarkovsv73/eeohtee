@@ -4,12 +4,6 @@ import paho.mqtt.client as mqtt
 
 
 class CommandPublisher(object):
-    """Publishes commands the server wants a PI's actuator to run, on
-    '<prefix>/<pi_id>/<code>/cmd' - the PI's own command subscriber
-    (mqtt_client/commands.py) forwards these straight onto that
-    actuator's normal queue.
-    """
-
     def __init__(self, mqtt_settings):
         self._topic_prefix = mqtt_settings.get("topic_prefix", "smarthome")
         client_id = mqtt_settings.get("client_id", "smarthome-server") + "-cmd"

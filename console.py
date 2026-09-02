@@ -11,19 +11,6 @@ def build_registry(actuators, triggers):
 
 
 def dispatch_command(raw, by_code):
-    """Parses and executes one command line (e.g. "DS1 HOLD", "DL ON")
-    against the by_code registry built by build_registry(). This is the
-    single command grammar shared by the interactive console AND the
-    remote MQTT console listener (mqtt_client/remote_console.py) - a Web
-    UI command is dispatched through the exact same code path as someone
-    typing at the PI's own terminal.
-
-    Returns (ok: bool, message: str|None). message is None on a quiet
-    success (the device's own callback already printed a confirmation);
-    QUIT is deliberately not handled here - that's session lifecycle, not
-    a device command, and a remote caller should never be able to kill
-    the process this way.
-    """
     raw = raw.strip()
     if not raw:
         return False, "empty command"
@@ -68,32 +55,6 @@ def dispatch_command(raw, by_code):
 
 
 def run_console(stop_event, actuators, triggers=None, mqtt_settings=None, device_settings=None):
-    """Generic console control loop, shared by every PI's main script.
-
-    `actuators` is a list of dicts:
-      {
-        "code": "DL",                 # first token of the command, e.g. "DL ON"
-        "enabled": True/False,
-        "queue": dl_queue,
-        "help": ["DL ON    - Turn LED on", "DL OFF   - Turn LED off"],
-        "commands": {
-            "ON": lambda args: {"code": "MANUAL_ON", "state": True},
-            "OFF": lambda args: {"code": "MANUAL_OFF", "state": False},
-        },
-      }
-    A command handler returns the message dict to put on the queue, or
-    None (and may print its own error) if the arguments were invalid.
-
-    `triggers` (optional) is a list of dicts in the same shape, minus
-    "queue" - used for forcing a sensor reading on demand for demo
-    purposes (e.g. "DS1 HOLD", "DPIR1 TRIGGER"). Its command handlers
-    perform the action directly (calling the sensor's real callback) and
-    return False on invalid input, or anything else on success.
-
-    If `mqtt_settings`/`device_settings` are given, this also starts a
-    remote console listener (mqtt_client/remote_console.py) so a Web UI
-    can run any of the same commands over MQTT via the server.
-    """
     triggers = triggers or []
     by_code = build_registry(actuators, triggers)
 
