@@ -3,31 +3,31 @@ import threading
 
 import paho.mqtt.client as mqtt
 
+from console import dispatch_command
 
-def start_remote_reading_subscriber(mqtt_settings, subscriptions, stop_event):
+
+def start_remote_console(mqtt_settings, device_settings, by_code, stop_event):
     prefix = mqtt_settings.get("topic_prefix", "smarthome")
-    callbacks_by_topic = {}
-    for pi_id, sensor_code, callback in subscriptions:
-        topic = f"{prefix}/{pi_id}/{sensor_code}"
-        callbacks_by_topic[topic] = callback
+    pi_id = device_settings.get("pi_id", "PI1")
+    topic = f"{prefix}/{pi_id}/console/cmd"
 
     def on_connect(client, userdata, flags, rc):
-        for topic in callbacks_by_topic:
-            client.subscribe(topic)
+        client.subscribe(topic)
 
     def on_message(client, userdata, msg):
-        callback = callbacks_by_topic.get(msg.topic)
-        if callback is None:
-            return
         try:
             payload = json.loads(msg.payload.decode('utf-8'))
         except (json.JSONDecodeError, UnicodeDecodeError):
             return
-        for reading in payload.get('readings', []):
-            callback(reading)
+        command = payload.get("command", "")
+        if not command:
+            return
+        ok, message = dispatch_command(command, by_code)
+        status = "ok" if ok else "error"
+        suffix = f": {message}" if message else ""
+        print(f"[remote] {command} -> {status}{suffix}")
 
-    client_id = mqtt_settings.get("client_id", "pi-remote") + "-remote"
-    client = mqtt.Client(client_id=client_id)
+    client = mqtt.Client(client_id=f"{pi_id}-remote-console")
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(mqtt_settings.get("broker", "localhost"), mqtt_settings.get("port", 1883))

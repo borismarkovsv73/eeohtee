@@ -25,6 +25,8 @@ def run_lcd(settings, threads, stop_event, name, queue, mqtt_settings, device_se
         enqueue_reading(topic, sensor_name, code, line0, simulated, extra={"field": "line0"})
         enqueue_reading(topic, sensor_name, code, line1, simulated, extra={"field": "line1"})
 
+    callback(("", ""), "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         actuator_thread = threading.Thread(
@@ -36,8 +38,8 @@ def run_lcd(settings, threads, stop_event, name, queue, mqtt_settings, device_se
     else:
         from actuators.lcd import LCD
         print(f"Starting {name} loop")
-        pins = settings['pins']
-        lcd = LCD(pins['rs'], pins['e'], [pins['d4'], pins['d5'], pins['d6'], pins['d7']])
+        address = int(settings.get('i2c_address', '0x27'), 16)
+        lcd = LCD(address, settings.get('i2c_bus', 1))
         actuator_thread = threading.Thread(
             target=run_lcd_loop, args=(lcd, 2, callback, stop_event, name, queue)
         )

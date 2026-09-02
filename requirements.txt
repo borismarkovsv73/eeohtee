@@ -2,3 +2,5 @@ RPi.GPIO>=0.7.1
 paho-mqtt>=1.6.1,<2.0.0
 flask>=3.0.0
 influxdb-client>=1.40.0
+# smbus (for the I2C LCD) is deliberately not listed here - install it via
+# `sudo apt install python3-smbus`; pip's own "smbus" wheel is unreliable.

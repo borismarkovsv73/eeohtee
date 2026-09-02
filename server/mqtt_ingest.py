@@ -40,7 +40,8 @@ def build_subscriber(mqtt_settings, influx_writer, alarm_engine=None):
             return
 
         influx_writer.write_readings(pi_id, sensor_code, readings)
-        update_latest(pi_id, sensor_code, readings[-1])
+        for reading in readings:
+            update_latest(pi_id, sensor_code, reading)
         print(f"[server] stored {len(readings)} reading(s) for {pi_id}/{sensor_code}")
 
         if alarm_engine is not None:

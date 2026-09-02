@@ -1,35 +1,66 @@
 from verbosity import set_verbose
 
 
-def run_console(stop_event, actuators, triggers=None):
-    """Generic console control loop, shared by every PI's main script.
-
-    `actuators` is a list of dicts:
-      {
-        "code": "DL",                 # first token of the command, e.g. "DL ON"
-        "enabled": True/False,
-        "queue": dl_queue,
-        "help": ["DL ON    - Turn LED on", "DL OFF   - Turn LED off"],
-        "commands": {
-            "ON": lambda args: {"code": "MANUAL_ON", "state": True},
-            "OFF": lambda args: {"code": "MANUAL_OFF", "state": False},
-        },
-      }
-    A command handler returns the message dict to put on the queue, or
-    None (and may print its own error) if the arguments were invalid.
-
-    `triggers` (optional) is a list of dicts in the same shape, minus
-    "queue" - used for forcing a sensor reading on demand for demo
-    purposes (e.g. "DS1 HOLD", "DPIR1 TRIGGER"). Its command handlers
-    perform the action directly (calling the sensor's real callback) and
-    return False on invalid input, or anything else on success.
-    """
-    triggers = triggers or []
+def build_registry(actuators, triggers):
     by_code = {}
     for a in actuators:
         by_code[a["code"]] = ("actuator", a)
     for t in triggers:
         by_code[t["code"]] = ("trigger", t)
+    return by_code
+
+
+def dispatch_command(raw, by_code):
+    raw = raw.strip()
+    if not raw:
+        return False, "empty command"
+
+    parts = raw.split()
+
+    if parts[0].upper() == "QUIET":
+        sub = parts[1].upper() if len(parts) > 1 else ""
+        if sub == "ON":
+            set_verbose(False)
+            return True, "Sensor console prints muted (QUIET OFF to restore)"
+        elif sub == "OFF":
+            set_verbose(True)
+            return True, "Sensor console prints restored"
+        return False, "Usage: QUIET ON | QUIET OFF"
+
+    code = parts[0].upper()
+    entry = by_code.get(code)
+    if not entry:
+        return False, f"Unknown command: {raw}"
+
+    kind, target = entry
+    if not target["enabled"]:
+        return False, f"{code} is DISABLED in settings"
+
+    sub = parts[1].upper() if len(parts) > 1 else ""
+    handler = target["commands"].get(sub)
+    if not handler:
+        return False, f"Unknown subcommand for {code}: {raw}"
+
+    if kind == "actuator":
+        message = handler(parts[2:])
+        if message is not None:
+            target["queue"].put(message)
+            return True, None
+        return False, f"Invalid arguments: {raw}"
+    else:
+        result = handler(parts[2:])
+        if result is False:
+            return False, f"Invalid arguments: {raw}"
+        return True, None
+
+
+def run_console(stop_event, actuators, triggers=None, mqtt_settings=None, device_settings=None):
+    triggers = triggers or []
+    by_code = build_registry(actuators, triggers)
+
+    if mqtt_settings is not None and device_settings is not None:
+        from mqtt_client.remote_console import start_remote_console
+        start_remote_console(mqtt_settings, device_settings, by_code, stop_event)
 
     print("\n" + "="*50)
     print("Console Control Interface")
@@ -54,48 +85,9 @@ def run_console(stop_event, actuators, triggers=None):
                 stop_event.set()
                 break
 
-            parts = raw.split()
-
-            if parts[0].upper() == "QUIET":
-                sub = parts[1].upper() if len(parts) > 1 else ""
-                if sub == "ON":
-                    set_verbose(False)
-                    print("Sensor console prints muted (QUIET OFF to restore)")
-                elif sub == "OFF":
-                    set_verbose(True)
-                    print("Sensor console prints restored")
-                else:
-                    print("Usage: QUIET ON | QUIET OFF")
-                continue
-
-            code = parts[0].upper()
-            entry = by_code.get(code)
-
-            if not entry:
-                print(f"Unknown command: {raw}")
-                continue
-
-            kind, target = entry
-            if not target["enabled"]:
-                print(f"{code} is DISABLED in settings")
-                continue
-
-            sub = parts[1].upper() if len(parts) > 1 else ""
-            handler = target["commands"].get(sub)
-            if not handler:
-                print(f"Unknown subcommand for {code}: {raw}")
-                continue
-
-            if kind == "actuator":
-                message = handler(parts[2:])
-                if message is not None:
-                    target["queue"].put(message)
-                else:
-                    print(f"Invalid arguments: {raw}")
-            else:
-                result = handler(parts[2:])
-                if result is False:
-                    print(f"Invalid arguments: {raw}")
+            ok, message = dispatch_command(raw, by_code)
+            if message:
+                print(message)
 
         except EOFError:
             break

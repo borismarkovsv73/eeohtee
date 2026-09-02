@@ -23,6 +23,8 @@ def run_ds(settings, threads, stop_event, name, dl_queue, db_queue, mqtt_setting
         ds_callback(state, code, sensor_name)
         enqueue_reading(topic, sensor_name, code, state, simulated)
 
+    callback(False, "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         sensor_thread = threading.Thread(

@@ -25,6 +25,8 @@ def run_pir(settings, threads, stop_event, name, mqtt_settings, device_settings,
         if motion and on_motion:
             on_motion()
 
+    callback(False, "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         sensor_thread = threading.Thread(

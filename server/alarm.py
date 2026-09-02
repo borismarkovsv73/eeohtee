@@ -4,19 +4,6 @@ from collections import deque
 
 
 class AlarmEngine(object):
-    """Central cross-PI alarm/occupancy/arming state machine.
-
-    Lives on the server because it's the only process that already sees
-    every PI's sensor data (via MQTT). To actuate DB on PI1 it publishes
-    an MQTT command through `command_publisher`, which PI1's own command
-    subscriber forwards onto DB's existing queue - no actuator code
-    needed to change.
-
-    A single lock protects the small pieces of shared state below; it is
-    never held across I/O (Influx writes, MQTT publishes) - those happen
-    after releasing it, same pattern as mqtt_client/buffer.py.
-    """
-
     PIR_CODES = {"DPIR1", "DPIR2", "DPIR3"}
     DOOR_TO_DISTANCE = {"DS1": "DUS1", "DS2": "DUS2"}
     PIR_TO_DISTANCE = {"DPIR1": "DUS1", "DPIR2": "DUS2"}
@@ -39,12 +26,14 @@ class AlarmEngine(object):
         self.armed = False
         self.occupancy = 0
 
+        self._active_conditions = {}     # condition_key -> reason
         self._pin_buffer = ""
         self._pending_arm_deadline = None
 
         self._ds_since = {}              # sensor_code -> time.time() when became pressed
         self._armed_door_deadline = {}   # sensor_code -> deadline time.time()
         self._distance_history = {"DUS1": deque(), "DUS2": deque()}
+        self._last_occupancy_event = {}  # pir_code -> time.time() of last counted crossing
 
         self._ticker = threading.Thread(target=self._tick_loop, daemon=True)
         self._ticker.start()
@@ -80,7 +69,7 @@ class AlarmEngine(object):
             self._handle_keypress(str(value))
         elif sensor_code == "GSG":
             if bool(value):
-                self._activate_alarm("GSG_MOVEMENT", "GSG")
+                self._activate_alarm("GSG_MOVEMENT", "GSG", "GSG_MOVEMENT")
 
     def _handle_door_sensor(self, code, pressed, ts):
         with self._lock:
@@ -92,22 +81,42 @@ class AlarmEngine(object):
             else:
                 self._ds_since.pop(code, None)
                 self._armed_door_deadline.pop(code, None)
+        if not pressed:
+            # only DOOR_HELD_OPEN resolves this way - UNAUTHORIZED_ENTRY has
+            # no such exit condition, it requires PIN/web disarm regardless
+            # of whether the door is later closed
+            self._clear_condition(f"DOOR_HELD_OPEN:{code}")
 
     def _handle_pir(self, code, motion, ts):
         if not motion:
             return
-        with self._lock:
-            occupancy_now = self.occupancy
-        if occupancy_now <= 0:
-            self._activate_alarm("EMPTY_HOUSE_MOTION", code)
 
+        direction = None
         distance_code = self.PIR_TO_DISTANCE.get(code)
         if distance_code:
-            direction = self._infer_direction(distance_code, ts)
-            if direction == "enter":
-                self._adjust_occupancy(1)
-            elif direction == "exit":
-                self._adjust_occupancy(-1)
+            with self._lock:
+                last_event = self._last_occupancy_event.get(code)
+                debounced = last_event is not None and (ts - last_event) < self.distance_window
+            if not debounced:
+                direction = self._infer_direction(distance_code, ts)
+                if direction in ("enter", "exit"):
+                    # only a crossing that actually gets counted consumes
+                    # the debounce window - an inconclusive/no-data PIR
+                    # blip must not block a real crossing shortly after
+                    with self._lock:
+                        self._last_occupancy_event[code] = ts
+
+        with self._lock:
+            occupancy_now = self.occupancy
+        if occupancy_now <= 0 and direction != "enter":
+            # a confidently-inferred entry explains the motion on its own -
+            # only treat it as suspicious if it's not that
+            self._activate_alarm("EMPTY_HOUSE_MOTION", code, "EMPTY_HOUSE_MOTION")
+
+        if direction == "enter":
+            self._adjust_occupancy(1)
+        elif direction == "exit":
+            self._adjust_occupancy(-1)
 
     def _handle_distance(self, code, distance, ts):
         try:
@@ -124,8 +133,9 @@ class AlarmEngine(object):
                 dq.popleft()
 
     def _infer_direction(self, code, ts):
+        cutoff = ts - self.distance_window
         with self._lock:
-            dq = list(self._distance_history.get(code, ()))
+            dq = [(t, d) for t, d in self._distance_history.get(code, ()) if cutoff <= t <= ts]
         if len(dq) < 2:
             return None
         _, first_d = dq[0]
@@ -179,9 +189,10 @@ class AlarmEngine(object):
         self._log("OCCUPANCY", "OCCUPANCY_CHANGED", new_value)
         print(f"[alarm] occupancy -> {new_value}")
 
-    def _activate_alarm(self, reason, source):
+    def _activate_alarm(self, reason, source, condition_key):
         with self._lock:
-            already_active = self.alarm_active
+            already_active = bool(self._active_conditions)
+            self._active_conditions[condition_key] = reason
             self.alarm_active = True
             self.alarm_reason = reason
         self._log("ALARM", reason, True)
@@ -189,19 +200,31 @@ class AlarmEngine(object):
         if not already_active:
             self._command_publisher.send("PI1", "DB", {"code": "ALARM_ON"})
 
+    def _clear_condition(self, condition_key):
+        with self._lock:
+            had = self._active_conditions.pop(condition_key, None)
+            if had is None:
+                return
+            still_active = bool(self._active_conditions)
+            if not still_active:
+                self.alarm_active = False
+                self.alarm_reason = None
+            else:
+                self.alarm_reason = next(reversed(list(self._active_conditions.values())))
+        print(f"[alarm] condition resolved: {condition_key}")
+        if not still_active:
+            self._log("ALARM", "ALARM_OFF", False)
+            self._command_publisher.send("PI1", "DB", {"code": "ALARM_OFF"})
+
     def _disarm(self, source):
         with self._lock:
-            was_active = self.alarm_active
+            was_active = bool(self._active_conditions)
+            self._active_conditions.clear()
             self.alarm_active = False
             self.alarm_reason = None
             self.armed = False
             self._pending_arm_deadline = None
             self._armed_door_deadline.clear()
-            # restart the door-open countdown so disarming doesn't get
-            # immediately undone by the ticker re-triggering on a door
-            # that's still open; if it's genuinely still open 5s from now
-            # (rather than from whenever it was first opened) it can still
-            # legitimately re-trigger
             now = time.time()
             for code in self._ds_since:
                 self._ds_since[code] = now
@@ -245,9 +268,9 @@ class AlarmEngine(object):
                     became_armed = True
 
             for code in door_held_open:
-                self._activate_alarm("DOOR_HELD_OPEN", code)
+                self._activate_alarm("DOOR_HELD_OPEN", code, f"DOOR_HELD_OPEN:{code}")
             for code in unauthorized_entries:
-                self._activate_alarm("UNAUTHORIZED_ENTRY", code)
+                self._activate_alarm("UNAUTHORIZED_ENTRY", code, f"UNAUTHORIZED_ENTRY:{code}")
             if became_armed:
                 self._log("SECURITY", "ARMED", True)
                 print("[alarm] system armed")

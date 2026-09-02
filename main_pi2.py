@@ -59,8 +59,7 @@ if __name__ == "__main__":
 
         if sd4_settings.get('enabled', True):
             run_sd4(sd4_settings, threads, stop_event, "4SD", sd4_queue, mqtt_settings, device_settings)
-            # item 8: kitchen stopwatch drives the same 4SD queue - purely
-            # local to PI2, since BTN and 4SD both live here
+            # BTN is local to PI2, same as 4SD, so no server round-trip needed
             start_timer(sd4_queue, timer_queue, stop_event, threads)
 
         if btn_settings.get('enabled', True):
@@ -171,7 +170,7 @@ if __name__ == "__main__":
                 "commands": {"PRESS": trigger_btn_press},
             },
         ]
-        run_console(stop_event, actuators, triggers)
+        run_console(stop_event, actuators, triggers, mqtt_settings, device_settings)
 
     except KeyboardInterrupt:
         print('Stopping app')

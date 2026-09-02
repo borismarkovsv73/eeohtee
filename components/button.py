@@ -25,6 +25,8 @@ def run_button(settings, threads, stop_event, name, mqtt_settings, device_settin
         if pressed and on_press:
             on_press()
 
+    callback(False, "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         sensor_thread = threading.Thread(

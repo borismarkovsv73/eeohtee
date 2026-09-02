@@ -3,11 +3,6 @@ from influxdb_client.client.write_api import WriteOptions
 
 
 class InfluxWriter(object):
-    """Wraps the InfluxDB client's own batching write API (it maintains its
-    own internal buffer/flush thread), so no additional locking is needed
-    here - writes are just handed off.
-    """
-
     def __init__(self, influx_settings):
         self._bucket = influx_settings['bucket']
         self._org = influx_settings['org']

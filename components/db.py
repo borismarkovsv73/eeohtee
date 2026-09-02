@@ -23,6 +23,8 @@ def run_db(settings, threads, stop_event, name, queue, mqtt_settings, device_set
         db_callback(state, code, sensor_name)
         enqueue_reading(topic, sensor_name, code, state, simulated)
 
+    callback(False, "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         buzzer_thread = threading.Thread(

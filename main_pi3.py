@@ -12,6 +12,7 @@ from components.pir import run_pir
 from console import run_console
 from mqtt_client.publisher import start_publisher_daemon
 from mqtt_client.remote_reading import start_remote_reading_subscriber
+from mqtt_client.commands import start_command_subscriber
 import time
 
 try:
@@ -21,7 +22,7 @@ except:
     pass
 
 
-# item 9: fixed remote-to-color mapping, matching simulators/ir.py's REMOTE_CODES
+# fixed remote-to-color mapping; codes must match simulators/ir.py's REMOTE_CODES
 IR_REMOTE_MAP = {
     "0x45": {"code": "MANUAL_OFF", "color": (0, 0, 0)},
     "0x46": {"code": "MANUAL_SET", "color": (255, 0, 0)},
@@ -72,27 +73,33 @@ if __name__ == "__main__":
 
         print(f"Device: {device_settings.get('name')} ({device_settings.get('pi_id')})")
         start_publisher_daemon(mqtt_settings, stop_event, threads)
+        start_command_subscriber(mqtt_settings, device_settings, {"BRGB": brgb_queue, "LCD": lcd_queue}, stop_event)
 
         dpir3_callback = ir_callback = None
 
-        # item 7: DHT1/DHT2 are local (updated via on_reading hooks below);
-        # DHT3 lives on PI2, so it's observed directly over MQTT instead of
-        # going through the server - PIs can subscribe to each other's
+        # DHT1/DHT2 are local (updated via on_reading hooks below); DHT3 lives
+        # on PI2, so it's observed directly over MQTT instead of going
+        # through the server - PIs can subscribe to each other's
         # already-published sensor topics, no new infrastructure needed
         dht_readings = {name: {"temperature": None, "humidity": None} for name in DHT_ROTATION_ORDER}
 
+        # dht_readings entries are replaced wholesale (never mutated in
+        # place) so the LCD rotation thread's read of dht_readings[name]
+        # is always a complete, consistent snapshot - a single dict-item
+        # assignment is atomic under the GIL, two separate key writes
+        # into the same nested dict are not
         def make_dht_hook(name):
             def hook(temperature, humidity):
-                dht_readings[name]["temperature"] = temperature
-                dht_readings[name]["humidity"] = humidity
+                dht_readings[name] = {"temperature": temperature, "humidity": humidity}
             return hook
 
         def on_remote_dht3(reading):
             field = reading.get("field", "value")
-            if field == "temperature":
-                dht_readings["DHT3"]["temperature"] = reading.get("value")
-            elif field == "humidity":
-                dht_readings["DHT3"]["humidity"] = reading.get("value")
+            if field not in ("temperature", "humidity"):
+                return
+            updated = dict(dht_readings["DHT3"])
+            updated[field] = reading.get("value")
+            dht_readings["DHT3"] = updated
 
         if dht1_settings.get('enabled', True):
             run_dht(dht1_settings, threads, stop_event, "DHT1", mqtt_settings, device_settings, on_reading=make_dht_hook("DHT1"))
@@ -103,8 +110,7 @@ if __name__ == "__main__":
         start_remote_reading_subscriber(mqtt_settings, [("PI2", "DHT3", on_remote_dht3)], stop_event)
 
         if ir_settings.get('enabled', True):
-            # item 9: remote-control button presses drive BRGB directly -
-            # local to PI3, since IR and BRGB both live here
+            # BRGB is local to PI3, same as IR, so no server round-trip needed
             def handle_ir_code(code):
                 action = IR_REMOTE_MAP.get(code)
                 if action:
@@ -178,7 +184,7 @@ if __name__ == "__main__":
                 "commands": {"CODE": trigger_ir_code},
             },
         ]
-        run_console(stop_event, actuators, triggers)
+        run_console(stop_event, actuators, triggers, mqtt_settings, device_settings)
 
     except KeyboardInterrupt:
         print('Stopping app')

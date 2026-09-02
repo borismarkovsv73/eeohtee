@@ -26,6 +26,8 @@ def run_brgb(settings, threads, stop_event, name, queue, mqtt_settings, device_s
         enqueue_reading(topic, sensor_name, code, g, simulated, extra={"field": "g"})
         enqueue_reading(topic, sensor_name, code, b, simulated, extra={"field": "b"})
 
+    callback((0, 0, 0), "STARTUP", name)
+
     if simulated:
         print(f"Starting {name} simulator")
         actuator_thread = threading.Thread(
